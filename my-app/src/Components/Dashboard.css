@@ -1,0 +1,52 @@
+/* Modernized Dashboard.css for Better UI & UX */
+
+.dashboard-container {
+    padding: 20px;
+    background: #f4f6f8;
+    min-height: 100vh;
+  }
+  
+  .dashboard-title {
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 20px;
+    color: #1976d2;
+  }
+  
+  .dashboard-paper {
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  .upload-btn {
+    display: block;
+    margin: 20px auto;
+    font-weight: bold;
+    text-transform: none;
+    transition: all 0.3s ease;
+  }
+  
+  .upload-btn:hover {
+    transform: scale(1.05);
+  }
+  
+  .pagination {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+  }
+  
+  .tag-chip {
+    margin-right: 5px;
+    background: #e3f2fd;
+    color: #1976d2;
+  }
+  
+  .contributor-item {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 5px;
+    color: #424242;
+  }
+  

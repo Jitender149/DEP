@@ -1,0 +1,60 @@
+/* General Styles */
+body {
+    background-color: #f9fafb;
+    margin: 0;
+    font-family: Arial, sans-serif;
+  }
+  
+  /* Title Bar */
+  .title-bar {
+    background-color: #1a56db;
+    color: white;
+    padding: 2rem 0;
+    text-align: center;
+    font-size: 2rem;
+    font-weight: bold;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Content Section */
+  .content-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 3rem 1rem;
+  }
+  
+  /* Floating Content Box */
+  .content-box {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s, box-shadow 0.3s;
+    margin-bottom: 1.5rem;
+  }
+  
+  .content-box:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  .content-box-title {
+    color: #1a56db;
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+  
+  .content-box-divider {
+    width: 60px;
+    height: 4px;
+    background-color: #1a56db;
+    margin-bottom: 1rem;
+  }
+  
+  .content-box p {
+    color: #4a4a4a;
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+  
