@@ -1,3 +1,10 @@
+// // export default MaterialSharing
+
+
+
+
+
+
 // "use client"
 
 // import { useState, useEffect } from "react"
@@ -25,8 +32,25 @@
 //   Link,
 //   CircularProgress,
 //   IconButton,
+//   Divider,
+//   List,
+//   ListItem,
+//   ListItemText,
+//   ListItemAvatar,
+//   Avatar,
+//   Badge,
 // } from "@mui/material"
-// import { CloudUpload, Search, Close } from "@mui/icons-material"
+// import { 
+//   CloudUpload, 
+//   Search, 
+//   Close, 
+//   Delete, 
+//   ThumbUp, 
+//   ThumbDown, 
+//   Comment as CommentIcon,
+//   Send,
+//   Person
+// } from "@mui/icons-material"
 
 // // TabPanel component for tab content
 // function TabPanel(props) {
@@ -71,6 +95,18 @@
 //   const [materials, setMaterials] = useState([])
 //   const [isLoading, setIsLoading] = useState(false)
 //   const [searchPerformed, setSearchPerformed] = useState(false)
+//   const [isDeleting, setIsDeleting] = useState(false)
+  
+//   // State for comments
+//   const [commentDialogOpen, setCommentDialogOpen] = useState(false)
+//   const [currentMaterialId, setCurrentMaterialId] = useState(null)
+//   const [commentText, setCommentText] = useState("")
+//   const [comments, setComments] = useState([])
+//   const [isLoadingComments, setIsLoadingComments] = useState(false)
+//   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
+  
+//   // State for voting
+//   const [isVoting, setIsVoting] = useState(false)
 
 //   // Available tags
 //   const availableTags = [
@@ -114,6 +150,19 @@
 
 //   const handleCloseSearchDialog = () => {
 //     setSearchDialogOpen(false)
+//   }
+  
+//   // Handle comment dialog
+//   const handleOpenCommentDialog = async (materialId) => {
+//     setCurrentMaterialId(materialId)
+//     setCommentDialogOpen(true)
+//     await fetchComments(materialId)
+//   }
+  
+//   const handleCloseCommentDialog = () => {
+//     setCommentDialogOpen(false)
+//     setCommentText("")
+//     setCurrentMaterialId(null)
 //   }
 
 //   // Reset upload form
@@ -181,7 +230,7 @@
 //         formData.append("link", link)
 //       }
 
-//       const response = await fetch("/uploads", {
+//       const response = await fetch("http://localhost:5000/uploads", {
 //         method: "POST",
 //         headers: {
 //           Authorization: `Bearer ${token}`,
@@ -203,6 +252,152 @@
 //       alert("An error occurred while uploading. Please try again.")
 //     } finally {
 //       setIsUploading(false)
+//     }
+//   }
+
+//   // Handle delete material
+//   const handleDeleteMaterial = async (materialId) => {
+//     if (!confirm("Are you sure you want to delete this material?")) {
+//       return
+//     }
+
+//     setIsDeleting(true)
+
+//     try {
+//       const token = localStorage.getItem("token")
+
+//       const response = await fetch(`/http://localhost:5000/uploads/${materialId}`, {
+//         method: "DELETE",
+//         headers: {
+//           Authorization: `Bearer ${token}`,
+//           "Content-Type": "application/json",
+//         },
+//       })
+
+//       const data = await response.json()
+
+//       if (response.ok) {
+//         alert("Material deleted successfully!")
+//         // Remove the deleted material from the state
+//         setMaterials(materials.filter(material => material.id !== materialId))
+//       } else {
+//         alert(`Delete failed: ${data.message}`)
+//       }
+//     } catch (error) {
+//       console.error("Error deleting material:", error)
+//       alert("An error occurred while deleting. Please try again.")
+//     } finally {
+//       setIsDeleting(false)
+//     }
+//   }
+  
+//   // Handle voting (upvote/downvote)
+//   const handleVote = async (materialId, voteType) => {
+//     setIsVoting(true)
+    
+//     try {
+//       const token = localStorage.getItem("token")
+      
+//       const response = await fetch(`/http://localhost:5000/uploads/${materialId}/vote`, {
+//         method: "POST",
+//         headers: {
+//           Authorization: `Bearer ${token}`,
+//           "Content-Type": "application/json",
+//         },
+//         body: JSON.stringify({ type: voteType }),
+//       })
+      
+//       const data = await response.json()
+      
+//       if (response.ok) {
+//         // Update the material in the state with the new vote count
+//         setMaterials(materials.map(material => {
+//           if (material.id === materialId) {
+//             if (voteType === "upvote") {
+//               return { ...material, upvotes: material.upvotes + 1 }
+//             } else if (voteType === "downvote") {
+//               return { ...material, downvotes: material.downvotes + 1 }
+//             }
+//           }
+//           return material
+//         }))
+//       } else {
+//         alert(`Vote failed: ${data.message}`)
+//       }
+//     } catch (error) {
+//       console.error("Error voting:", error)
+//       alert("An error occurred while voting. Please try again.")
+//     } finally {
+//       setIsVoting(false)
+//     }
+//   }
+  
+//   // Fetch comments for a material
+//   const fetchComments = async (materialId) => {
+//     setIsLoadingComments(true)
+    
+//     try {
+//       const token = localStorage.getItem("token")
+      
+//       // This endpoint doesn't exist in your backend yet, but you should add it
+//       const response = await fetch(`/http://localhost:5000/uploads/${materialId}/comments`, {
+//         method: "GET",
+//         headers: {
+//           Authorization: `Bearer ${token}`,
+//           "Content-Type": "application/json",
+//         },
+//       })
+      
+//       if (response.ok) {
+//         const data = await response.json()
+//         setComments(data.comments || [])
+//       } else {
+//         // If the endpoint doesn't exist yet, just show an empty list
+//         setComments([])
+//       }
+//     } catch (error) {
+//       console.error("Error fetching comments:", error)
+//       // If the endpoint doesn't exist yet, just show an empty list
+//       setComments([])
+//     } finally {
+//       setIsLoadingComments(false)
+//     }
+//   }
+  
+//   // Submit a comment
+//   const handleSubmitComment = async () => {
+//     if (!commentText.trim()) {
+//       return
+//     }
+    
+//     setIsSubmittingComment(true)
+    
+//     try {
+//       const token = localStorage.getItem("token")
+      
+//       const response = await fetch(`/http://localhost:5000/uploads/${currentMaterialId}/comments`, {
+//         method: "POST",
+//         headers: {
+//           Authorization: `Bearer ${token}`,
+//           "Content-Type": "application/json",
+//         },
+//         body: JSON.stringify({ text: commentText }),
+//       })
+      
+//       const data = await response.json()
+      
+//       if (response.ok) {
+//         setCommentText("")
+//         // Refresh comments
+//         await fetchComments(currentMaterialId)
+//       } else {
+//         alert(`Comment failed: ${data.message}`)
+//       }
+//     } catch (error) {
+//       console.error("Error submitting comment:", error)
+//       alert("An error occurred while submitting your comment. Please try again.")
+//     } finally {
+//       setIsSubmittingComment(false)
 //     }
 //   }
 
@@ -250,6 +445,17 @@
 //     }
 //   }
 
+//   // Helper function to optimize Cloudinary images
+//   const getOptimizedImageUrl = (url) => {
+//     // Check if it's a Cloudinary URL
+//     if (url && url.includes('cloudinary.com')) {
+//       // Insert transformation parameters before the upload folder
+//       // This example adds quality auto and format auto for optimal delivery
+//       return url.replace('/upload/', '/upload/q_auto,f_auto/')
+//     }
+//     return url
+//   }
+
 //   // Fetch recent materials on component mount
 //   const fetchRecentMaterials = async () => {
 //     setIsLoading(true)
@@ -283,6 +489,87 @@
 //   useEffect(() => {
 //     fetchRecentMaterials()
 //   }, [])
+
+//   // Render material card
+//   const renderMaterialCard = (material) => {
+//     const currentUser = JSON.parse(atob(localStorage.getItem("token").split('.')[1])).sub.username
+//     const isOwner = material.author === currentUser
+
+//     return (
+//       <Grid item xs={12} sm={6} md={4} key={material.id}>
+//         <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+//           <CardContent sx={{ flexGrow: 1 }}>
+//             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+//               <Typography variant="h6" component="div" gutterBottom>
+//                 {material.course_code}
+//               </Typography>
+//               {isOwner && (
+//                 <IconButton 
+//                   size="small" 
+//                   color="error" 
+//                   onClick={() => handleDeleteMaterial(material.id)}
+//                   disabled={isDeleting}
+//                 >
+//                   <Delete />
+//                 </IconButton>
+//               )}
+//             </Box>
+//             <Typography variant="body2" color="text.secondary" gutterBottom>
+//               {material.year} {material.semester}
+//             </Typography>
+//             <Typography variant="body2" paragraph>
+//               {material.description}
+//             </Typography>
+//             <Box sx={{ mb: 1 }}>
+//               {material.tags.split(",").map((tag, index) => (
+//                 <Chip key={index} label={tag} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
+//               ))}
+//             </Box>
+//             <Typography variant="body2">Uploaded by: {material.author}</Typography>
+//             {material.file_url && (
+//               <Link href={getOptimizedImageUrl(material.file_url)} target="_blank" rel="noopener">
+//                 View Material
+//               </Link>
+//             )}
+            
+//             {/* Voting and Comments */}
+//             <Box sx={{ display: "flex", justifyContent: "space-between", mt: 2, pt: 2, borderTop: "1px solid #eee" }}>
+//               <Box>
+//                 <IconButton 
+//                   size="small" 
+//                   color="primary" 
+//                   onClick={() => handleVote(material.id, "upvote")}
+//                   disabled={isVoting}
+//                 >
+//                   <Badge badgeContent={material.upvotes} color="primary">
+//                     <ThumbUp fontSize="small" />
+//                   </Badge>
+//                 </IconButton>
+//                 <IconButton 
+//                   size="small" 
+//                   color="error" 
+//                   onClick={() => handleVote(material.id, "downvote")}
+//                   disabled={isVoting}
+//                   sx={{ ml: 1 }}
+//                 >
+//                   <Badge badgeContent={material.downvotes} color="error">
+//                     <ThumbDown fontSize="small" />
+//                   </Badge>
+//                 </IconButton>
+//               </Box>
+//               <IconButton 
+//                 size="small" 
+//                 color="primary" 
+//                 onClick={() => handleOpenCommentDialog(material.id)}
+//               >
+//                 <CommentIcon fontSize="small" />
+//               </IconButton>
+//             </Box>
+//           </CardContent>
+//         </Card>
+//       </Grid>
+//     )
+//   }
 
 //   return (
 //     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -321,34 +608,7 @@
 //           ) : (
 //             <Grid container spacing={3}>
 //               {materials.length > 0 ? (
-//                 materials.map((material) => (
-//                   <Grid item xs={12} sm={6} md={4} key={material.id}>
-//                     <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-//                       <CardContent sx={{ flexGrow: 1 }}>
-//                         <Typography variant="h6" component="div" gutterBottom>
-//                           {material.course_code}
-//                         </Typography>
-//                         <Typography variant="body2" color="text.secondary" gutterBottom>
-//                           {material.year} {material.semester}
-//                         </Typography>
-//                         <Typography variant="body2" paragraph>
-//                           {material.description}
-//                         </Typography>
-//                         <Box sx={{ mb: 1 }}>
-//                           {material.tags.split(",").map((tag, index) => (
-//                             <Chip key={index} label={tag} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
-//                           ))}
-//                         </Box>
-//                         <Typography variant="body2">Uploaded by: {material.author}</Typography>
-//                         {material.file_url && (
-//                           <Link href={material.file_url} target="_blank" rel="noopener">
-//                             View Material
-//                           </Link>
-//                         )}
-//                       </CardContent>
-//                     </Card>
-//                   </Grid>
-//                 ))
+//                 materials.map(renderMaterialCard)
 //               ) : (
 //                 <Grid item xs={12}>
 //                   <Typography variant="body1" align="center">
@@ -380,34 +640,7 @@
 //               ) : (
 //                 <Grid container spacing={3}>
 //                   {materials.length > 0 ? (
-//                     materials.map((material) => (
-//                       <Grid item xs={12} sm={6} md={4} key={material.id}>
-//                         <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-//                           <CardContent sx={{ flexGrow: 1 }}>
-//                             <Typography variant="h6" component="div" gutterBottom>
-//                               {material.course_code}
-//                             </Typography>
-//                             <Typography variant="body2" color="text.secondary" gutterBottom>
-//                               {material.year} {material.semester}
-//                             </Typography>
-//                             <Typography variant="body2" paragraph>
-//                               {material.description}
-//                             </Typography>
-//                             <Box sx={{ mb: 1 }}>
-//                               {material.tags.split(",").map((tag, index) => (
-//                                 <Chip key={index} label={tag} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
-//                               ))}
-//                             </Box>
-//                             <Typography variant="body2">Uploaded by: {material.author}</Typography>
-//                             {material.file_url && (
-//                               <Link href={material.file_url} target="_blank" rel="noopener">
-//                                 View Material
-//                               </Link>
-//                             )}
-//                           </CardContent>
-//                         </Card>
-//                       </Grid>
-//                     ))
+//                     materials.map(renderMaterialCard)
 //                   ) : (
 //                     <Grid item xs={12}>
 //                       <Typography variant="body1" align="center">
@@ -612,6 +845,75 @@
 //           </Button>
 //         </DialogActions>
 //       </Dialog>
+      
+//       {/* Comments Dialog */}
+//       <Dialog open={commentDialogOpen} onClose={handleCloseCommentDialog} maxWidth="sm" fullWidth>
+//         <DialogTitle>
+//           Comments
+//           <IconButton
+//             aria-label="close"
+//             onClick={handleCloseCommentDialog}
+//             sx={{
+//               position: "absolute",
+//               right: 8,
+//               top: 8,
+//             }}
+//           >
+//             <Close />
+//           </IconButton>
+//         </DialogTitle>
+//         <DialogContent>
+//           {isLoadingComments ? (
+//             <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
+//               <CircularProgress />
+//             </Box>
+//           ) : (
+//             <>
+//               <List sx={{ mb: 2 }}>
+//                 {comments.length > 0 ? (
+//                   comments.map((comment) => (
+//                     <ListItem key={comment.id} alignItems="flex-start">
+//                       <ListItemAvatar>
+//                         <Avatar>
+//                           <Person />
+//                         </Avatar>
+//                       </ListItemAvatar>
+//                       <ListItemText
+//                         primary={comment.author}
+//                         secondary={comment.text}
+//                       />
+//                     </ListItem>
+//                   ))
+//                 ) : (
+//                   <Typography variant="body2" align="center" sx={{ py: 2 }}>
+//                     No comments yet. Be the first to comment!
+//                   </Typography>
+//                 )}
+//               </List>
+//               <Divider sx={{ mb: 2 }} />
+//               <Box sx={{ display: "flex", alignItems: "center" }}>
+//                 <TextField
+//                   label="Add a comment"
+//                   fullWidth
+//                   multiline
+//                   rows={2}
+//                   value={commentText}
+//                   onChange={(e) => setCommentText(e.target.value)}
+//                   disabled={isSubmittingComment}
+//                 />
+//                 <IconButton 
+//                   color="primary" 
+//                   onClick={handleSubmitComment}
+//                   disabled={!commentText.trim() || isSubmittingComment}
+//                   sx={{ ml: 1 }}
+//                 >
+//                   {isSubmittingComment ? <CircularProgress size={24} /> : <Send />}
+//                 </IconButton>
+//               </Box>
+//             </>
+//           )}
+//         </DialogContent>
+//       </Dialog>
 //     </Container>
 //   )
 // }
@@ -638,15 +940,31 @@ import {
   MenuItem,
   Paper,
   Select,
-  Tab,
-  Tabs,
   TextField,
   Typography,
   Link,
   CircularProgress,
   IconButton,
+  Divider,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemAvatar,
+  Avatar,
+  Badge,
 } from "@mui/material"
-import { CloudUpload, Search, Close } from "@mui/icons-material"
+import {
+  CloudUpload,
+  Search,
+  Close,
+  Delete,
+  ThumbUp,
+  ThumbDown,
+  Comment as CommentIcon,
+  Send,
+  Person,
+  Download,
+} from "@mui/icons-material"
 
 // TabPanel component for tab content
 function TabPanel(props) {
@@ -691,6 +1009,18 @@ const MaterialSharing = () => {
   const [materials, setMaterials] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [searchPerformed, setSearchPerformed] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // State for comments
+  const [commentDialogOpen, setCommentDialogOpen] = useState(false)
+  const [currentMaterialId, setCurrentMaterialId] = useState(null)
+  const [commentText, setCommentText] = useState("")
+  const [comments, setComments] = useState([])
+  const [isLoadingComments, setIsLoadingComments] = useState(false)
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false)
+
+  // State for voting
+  const [isVoting, setIsVoting] = useState(false)
 
   // Available tags
   const availableTags = [
@@ -734,6 +1064,19 @@ const MaterialSharing = () => {
 
   const handleCloseSearchDialog = () => {
     setSearchDialogOpen(false)
+  }
+
+  // Handle comment dialog
+  const handleOpenCommentDialog = async (materialId) => {
+    setCurrentMaterialId(materialId)
+    setCommentDialogOpen(true)
+    await fetchComments(materialId)
+  }
+
+  const handleCloseCommentDialog = () => {
+    setCommentDialogOpen(false)
+    setCommentText("")
+    setCurrentMaterialId(null)
   }
 
   // Reset upload form
@@ -801,7 +1144,7 @@ const MaterialSharing = () => {
         formData.append("link", link)
       }
 
-      const response = await fetch("/uploads", {
+      const response = await fetch("http://localhost:5000/uploads", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -826,6 +1169,153 @@ const MaterialSharing = () => {
     }
   }
 
+  // Handle delete material
+  const handleDeleteMaterial = async (materialId) => {
+    if (!confirm("Are you sure you want to delete this material?")) {
+      return
+    }
+
+    setIsDeleting(true)
+
+    try {
+      const token = localStorage.getItem("token")
+
+      const response = await fetch(`http://localhost:5000/uploads/${materialId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        alert("Material deleted successfully!")
+        // Remove the deleted material from the state
+        setMaterials(materials.filter((material) => material.id !== materialId))
+      } else {
+        alert(`Delete failed: ${data.message}`)
+      }
+    } catch (error) {
+      console.error("Error deleting material:", error)
+      alert("An error occurred while deleting. Please try again.")
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  // Handle voting (upvote/downvote)
+  const handleVote = async (materialId, voteType) => {
+    setIsVoting(true)
+
+    try {
+      const token = localStorage.getItem("token")
+
+      const response = await fetch(`http://localhost:5000/uploads/${materialId}/vote`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ type: voteType }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Update the material in the state with the new vote count
+        setMaterials(
+          materials.map((material) => {
+            if (material.id === materialId) {
+              if (voteType === "upvote") {
+                return { ...material, upvotes: material.upvotes + 1 }
+              } else if (voteType === "downvote") {
+                return { ...material, downvotes: material.downvotes + 1 }
+              }
+            }
+            return material
+          }),
+        )
+      } else {
+        alert(`Vote failed: ${data.message}`)
+      }
+    } catch (error) {
+      console.error("Error voting:", error)
+      alert("An error occurred while voting. Please try again.")
+    } finally {
+      setIsVoting(false)
+    }
+  }
+
+  // Fetch comments for a material
+  const fetchComments = async (materialId) => {
+    setIsLoadingComments(true)
+
+    try {
+      const token = localStorage.getItem("token")
+
+      const response = await fetch(`http://localhost:5000/uploads/${materialId}/comments`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setComments(data.comments || [])
+      } else {
+        // If the endpoint doesn't exist yet, just show an empty list
+        setComments([])
+      }
+    } catch (error) {
+      console.error("Error fetching comments:", error)
+      // If the endpoint doesn't exist yet, just show an empty list
+      setComments([])
+    } finally {
+      setIsLoadingComments(false)
+    }
+  }
+
+  // Submit a comment
+  const handleSubmitComment = async () => {
+    if (!commentText.trim()) {
+      return
+    }
+
+    setIsSubmittingComment(true)
+
+    try {
+      const token = localStorage.getItem("token")
+
+      const response = await fetch(`http://localhost:5000/uploads/${currentMaterialId}/comments`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text: commentText }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setCommentText("")
+        // Refresh comments
+        await fetchComments(currentMaterialId)
+      } else {
+        alert(`Comment failed: ${data.message}`)
+      }
+    } catch (error) {
+      console.error("Error submitting comment:", error)
+      alert("An error occurred while submitting your comment. Please try again.")
+    } finally {
+      setIsSubmittingComment(false)
+    }
+  }
+
   // Handle search submission
   const handleSearchSubmit = async () => {
     if (!searchCourseCode && !searchYear && !searchSemester && searchTags.length === 0) {
@@ -845,7 +1335,7 @@ const MaterialSharing = () => {
       if (searchSemester) params.append("semester", searchSemester)
       searchTags.forEach((tag) => params.append("tags", tag))
 
-      const response = await fetch(`/search?${params.toString()}`, {
+      const response = await fetch(`http://localhost:5000/search?${params.toString()}`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -870,6 +1360,17 @@ const MaterialSharing = () => {
     }
   }
 
+  // Helper function to optimize Cloudinary images
+  const getOptimizedImageUrl = (url) => {
+    // Check if it's a Cloudinary URL
+    if (url && url.includes("cloudinary.com")) {
+      // Insert transformation parameters before the upload folder
+      // This example adds quality auto and format auto for optimal delivery
+      return url.replace("/upload/", "/upload/q_auto,f_auto/")
+    }
+    return url
+  }
+
   // Fetch recent materials on component mount
   const fetchRecentMaterials = async () => {
     setIsLoading(true)
@@ -877,7 +1378,7 @@ const MaterialSharing = () => {
     try {
       const token = localStorage.getItem("token")
 
-      const response = await fetch("/recent-uploads", {
+      const response = await fetch("http://localhost:5000/recent-uploads", {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -904,6 +1405,110 @@ const MaterialSharing = () => {
     fetchRecentMaterials()
   }, [])
 
+  // Render material card
+  const renderMaterialCard = (material) => {
+    // Get current user from JWT token
+    const token = localStorage.getItem("token")
+    let currentUser = ""
+
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]))
+        currentUser = payload.sub.username
+      } catch (e) {
+        console.error("Error parsing token:", e)
+      }
+    }
+
+    const isOwner = material.author === currentUser
+
+    return (
+      <Grid item xs={12} sm={6} md={4} key={material.id}>
+        <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+          <CardContent sx={{ flexGrow: 1 }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <Typography variant="h6" component="div" gutterBottom>
+                {material.course_code}
+              </Typography>
+              {isOwner && (
+                <IconButton
+                  size="small"
+                  color="error"
+                  onClick={() => handleDeleteMaterial(material.id)}
+                  disabled={isDeleting}
+                >
+                  <Delete />
+                </IconButton>
+              )}
+            </Box>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              {material.year} {material.semester}
+            </Typography>
+            <Typography variant="body2" paragraph>
+              {material.description}
+            </Typography>
+            <Box sx={{ mb: 1 }}>
+              {material.tags &&
+                material.tags
+                  .split(",")
+                  .map((tag, index) => <Chip key={index} label={tag} size="small" sx={{ mr: 0.5, mb: 0.5 }} />)}
+            </Box>
+            <Typography variant="body2">Uploaded by: {material.author || "Anonymous"}</Typography>
+
+            {/* File Download Link */}
+            {material.file_url && (
+              <Box sx={{ mt: 1, display: "flex", alignItems: "center" }}>
+                <IconButton
+                  size="small"
+                  color="primary"
+                  component="a"
+                  href={getOptimizedImageUrl(material.file_url)}
+                  target="_blank"
+                  rel="noopener"
+                >
+                  <Download fontSize="small" />
+                </IconButton>
+                <Link href={getOptimizedImageUrl(material.file_url)} target="_blank" rel="noopener" sx={{ ml: 1 }}>
+                  Download Material
+                </Link>
+              </Box>
+            )}
+
+            {/* Voting and Comments */}
+            <Box sx={{ display: "flex", justifyContent: "space-between", mt: 2, pt: 2, borderTop: "1px solid #eee" }}>
+              <Box>
+                <IconButton
+                  size="small"
+                  color="primary"
+                  onClick={() => handleVote(material.id, "upvote")}
+                  disabled={isVoting}
+                >
+                  <Badge badgeContent={material.upvotes || 0} color="primary">
+                    <ThumbUp fontSize="small" />
+                  </Badge>
+                </IconButton>
+                <IconButton
+                  size="small"
+                  color="error"
+                  onClick={() => handleVote(material.id, "downvote")}
+                  disabled={isVoting}
+                  sx={{ ml: 1 }}
+                >
+                  <Badge badgeContent={material.downvotes || 0} color="error">
+                    <ThumbDown fontSize="small" />
+                  </Badge>
+                </IconButton>
+              </Box>
+              <IconButton size="small" color="primary" onClick={() => handleOpenCommentDialog(material.id)}>
+                <CommentIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          </CardContent>
+        </Card>
+      </Grid>
+    )
+  }
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Paper sx={{ p: 2 }}>
@@ -911,135 +1516,38 @@ const MaterialSharing = () => {
           Material Sharing
         </Typography>
 
-        <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
-          <Tabs value={tabValue} onChange={handleTabChange} aria-label="material sharing tabs">
-            <Tab label="Upload" />
-            <Tab label="Search" />
-          </Tabs>
+        {/* Action Buttons - Always visible */}
+        <Box sx={{ display: "flex", justifyContent: "center", gap: 2, mb: 4 }}>
+          <Button variant="contained" startIcon={<CloudUpload />} onClick={handleOpenUploadDialog}>
+            Upload Material
+          </Button>
+          <Button variant="outlined" startIcon={<Search />} onClick={handleOpenSearchDialog}>
+            Search Materials
+          </Button>
         </Box>
 
-        <TabPanel value={tabValue} index={0}>
-          <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
-            <Button
-              variant="contained"
-              startIcon={<CloudUpload />}
-              onClick={handleOpenUploadDialog}
-              sx={{ minWidth: 200 }}
-            >
-              Upload Material
-            </Button>
+        {/* Materials Display */}
+        <Typography variant="h6" gutterBottom>
+          {searchPerformed ? "Search Results" : "Available Materials"}
+        </Typography>
+
+        {isLoading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
+            <CircularProgress />
           </Box>
-
-          <Typography variant="h6" gutterBottom>
-            Recent Uploads
-          </Typography>
-
-          {isLoading ? (
-            <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <Grid container spacing={3}>
-              {materials.length > 0 ? (
-                materials.map((material) => (
-                  <Grid item xs={12} sm={6} md={4} key={material.id}>
-                    <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-                      <CardContent sx={{ flexGrow: 1 }}>
-                        <Typography variant="h6" component="div" gutterBottom>
-                          {material.course_code}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                          {material.year} {material.semester}
-                        </Typography>
-                        <Typography variant="body2" paragraph>
-                          {material.description}
-                        </Typography>
-                        <Box sx={{ mb: 1 }}>
-                          {material.tags.split(",").map((tag, index) => (
-                            <Chip key={index} label={tag} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
-                          ))}
-                        </Box>
-                        <Typography variant="body2">Uploaded by: {material.author}</Typography>
-                        {material.file_url && (
-                          <Link href={material.file_url} target="_blank" rel="noopener">
-                            View Material
-                          </Link>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))
-              ) : (
-                <Grid item xs={12}>
-                  <Typography variant="body1" align="center">
-                    No materials found. Be the first to upload!
-                  </Typography>
-                </Grid>
-              )}
-            </Grid>
-          )}
-        </TabPanel>
-
-        <TabPanel value={tabValue} index={1}>
-          <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
-            <Button variant="contained" startIcon={<Search />} onClick={handleOpenSearchDialog} sx={{ minWidth: 200 }}>
-              Search Materials
-            </Button>
-          </Box>
-
-          {searchPerformed && (
-            <>
-              <Typography variant="h6" gutterBottom>
-                Search Results
-              </Typography>
-
-              {isLoading ? (
-                <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
-                  <CircularProgress />
-                </Box>
-              ) : (
-                <Grid container spacing={3}>
-                  {materials.length > 0 ? (
-                    materials.map((material) => (
-                      <Grid item xs={12} sm={6} md={4} key={material.id}>
-                        <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-                          <CardContent sx={{ flexGrow: 1 }}>
-                            <Typography variant="h6" component="div" gutterBottom>
-                              {material.course_code}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                              {material.year} {material.semester}
-                            </Typography>
-                            <Typography variant="body2" paragraph>
-                              {material.description}
-                            </Typography>
-                            <Box sx={{ mb: 1 }}>
-                              {material.tags.split(",").map((tag, index) => (
-                                <Chip key={index} label={tag} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
-                              ))}
-                            </Box>
-                            <Typography variant="body2">Uploaded by: {material.author}</Typography>
-                            {material.file_url && (
-                              <Link href={material.file_url} target="_blank" rel="noopener">
-                                View Material
-                              </Link>
-                            )}
-                          </CardContent>
-                        </Card>
-                      </Grid>
-                    ))
-                  ) : (
-                    <Grid item xs={12}>
-                      <Typography variant="body1" align="center">
-                        No materials found matching your search criteria.
-                      </Typography>
-                    </Grid>
-                  )}
-                </Grid>
-              )}
-            </>
-          )}
-        </TabPanel>
+        ) : (
+          <Grid container spacing={3}>
+            {materials && materials.length > 0 ? (
+              materials.map(renderMaterialCard)
+            ) : (
+              <Grid item xs={12}>
+                <Typography variant="body1" align="center">
+                  No materials found. Be the first to upload!
+                </Typography>
+              </Grid>
+            )}
+          </Grid>
+        )}
       </Paper>
 
       {/* Upload Dialog */}
@@ -1231,6 +1739,72 @@ const MaterialSharing = () => {
             {isLoading ? <CircularProgress size={24} /> : "Search"}
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Comments Dialog */}
+      <Dialog open={commentDialogOpen} onClose={handleCloseCommentDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          Comments
+          <IconButton
+            aria-label="close"
+            onClick={handleCloseCommentDialog}
+            sx={{
+              position: "absolute",
+              right: 8,
+              top: 8,
+            }}
+          >
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {isLoadingComments ? (
+            <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <>
+              <List sx={{ mb: 2 }}>
+                {comments.length > 0 ? (
+                  comments.map((comment) => (
+                    <ListItem key={comment.id} alignItems="flex-start">
+                      <ListItemAvatar>
+                        <Avatar>
+                          <Person />
+                        </Avatar>
+                      </ListItemAvatar>
+                      <ListItemText primary={comment.author} secondary={comment.text} />
+                    </ListItem>
+                  ))
+                ) : (
+                  <Typography variant="body2" align="center" sx={{ py: 2 }}>
+                    No comments yet. Be the first to comment!
+                  </Typography>
+                )}
+              </List>
+              <Divider sx={{ mb: 2 }} />
+              <Box sx={{ display: "flex", alignItems: "center" }}>
+                <TextField
+                  label="Add a comment"
+                  fullWidth
+                  multiline
+                  rows={2}
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  disabled={isSubmittingComment}
+                />
+                <IconButton
+                  color="primary"
+                  onClick={handleSubmitComment}
+                  disabled={!commentText.trim() || isSubmittingComment}
+                  sx={{ ml: 1 }}
+                >
+                  {isSubmittingComment ? <CircularProgress size={24} /> : <Send />}
+                </IconButton>
+              </Box>
+            </>
+          )}
+        </DialogContent>
       </Dialog>
     </Container>
   )
