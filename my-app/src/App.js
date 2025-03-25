@@ -1,174 +1,280 @@
+// import React from 'react';
+// import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+// import { ThemeProvider } from './theme/ThemeContext';
+// import { AuthProvider } from './context/auth/AuthContext';
+// import { CssBaseline, Box } from '@mui/material';
+// import Home from './Components/Home';
+// import Resource from './Components/Resource';
+// import Login from './Components/Login';
+// import Signup from './Components/Signup';
+// import AboutUs from './Components/AboutUs';
+// import Contact from './Components/Contact';
+// import Profile from './Components/Profile';
+// import ProtectedRoute from './Components/ProtectedRoute';
 
-// // export default App;
-// import React from "react";
-// import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
-// import { CssBaseline, AppBar, Toolbar, Typography, Container, Box, Button } from "@mui/material";
-// import Login from "./Components/Login";
-// import Signup from "./Components/Signup";
-// import Dashboard from "./Components/Dashboard";
-// import Home from "./Components/Home";
-// import Contact from "./Components/Contact";
-// import AboutUs from "./Components/AboutUs"; // Import About Us page
-// import "./App.css";
-
-// const PrivateRoute = ({ element }) => {
-//   const token = localStorage.getItem("token");
-//   return token ? element : <Navigate to="/" replace />;
-// };
-
-// const Navbar = () => {
-//   const navigate = useNavigate();
-//   const token = localStorage.getItem("token");
-//   const username = localStorage.getItem("username"); // Get stored username
-
-//   const handleLogout = () => {
-//     localStorage.removeItem("token");
-//     navigate("/");
-//   };
-
+// function App() {
 //   return (
-//     <AppBar position="static" className="navbar">
-//       <Toolbar>
-//         <Typography variant="h6" className="navbar-title">
-//           Academic Platform
-//         </Typography>
-//         {token && <Button color="inherit" onClick={() => navigate("/home")} className="navbar-button">Home</Button>}
-//         {/* {token && <Button color="inherit" onClick={() => navigate("/about-us")} className="navbar-button">About Us</Button>} Added About Us */}
-//         {token ? (
-//           <Button color="inherit" onClick={handleLogout} className="navbar-button">Logout</Button>
-//         ) : (
-//           <>
-//             <Button color="inherit" href="/" className="navbar-button">Login</Button>
-//             <Button color="inherit" href="/signup" className="navbar-button">Sign Up</Button>
-//           </>
-//         )}
-//         {/* Display Username if Logged In */}
-//          {token && username && (
-//            <Typography variant="h6" className="navbar-username" style={{ marginLeft: "auto", marginRight: "15px" }}>
-//              Welcome, {username}
-//            </Typography>
-//          )}
-//       </Toolbar>
-//     </AppBar>
-//   );
-// };
-
-// const App = () => {
-//   return (
-//     <>
-//       <CssBaseline />
-//       <Router>
-//         <Navbar />
-//         <Box className="app-container">
-//           <Container maxWidth="md">
+//     <AuthProvider>
+//       <ThemeProvider>
+//         <CssBaseline />
+//         <Router>
+//           <Box sx={{ 
+//             minHeight: '100vh',
+//             display: 'flex',
+//             flexDirection: 'column',
+//             bgcolor: 'background.default'
+//           }}>
 //             <Routes>
-//               <Route path="/" element={<Login />} />
+//               {/* Public Routes */}
+//               <Route path="/login" element={<Login />} />
 //               <Route path="/signup" element={<Signup />} />
-//               <Route path="/home" element={<PrivateRoute element={<Home />} />} />
-//               <Route path="/dashboard" element={<PrivateRoute element={<Dashboard />} />} />
-//               <Route path="/contact" element={<PrivateRoute element={<Contact />} />} />
-//               <Route path="/about-us" element={<PrivateRoute element={<AboutUs />} />} />
-//               <Route path="*" element={<Typography variant="h4" align="center">404: Page Not Found</Typography>} />
+
+//               {/* Protected Routes */}
+//               <Route path="/" element={
+//                 <ProtectedRoute>
+//                   <Home />
+//                 </ProtectedRoute>
+//               } />
+//               <Route path="/resources" element={
+//                 <ProtectedRoute>
+//                   <Resource />
+//                 </ProtectedRoute>
+//               } />
+//               <Route path="/about" element={
+//                 <ProtectedRoute>
+//                   <AboutUs />
+//                 </ProtectedRoute>
+//               } />
+//               <Route path="/contact" element={
+//                 <ProtectedRoute>
+//                   <Contact />
+//                 </ProtectedRoute>
+//               } />
+//               <Route path="/profile" element={
+//                 <ProtectedRoute>
+//                   <Profile />
+//                 </ProtectedRoute>
+//               } />
+
+//               {/* Catch all route */}
+//               <Route path="*" element={<Navigate to="/" replace />} />
 //             </Routes>
-//           </Container>
-//         </Box>
-//       </Router>
-//     </>
+//           </Box>
+//         </Router>
+//       </ThemeProvider>
+//     </AuthProvider>
 //   );
-// };
+// }
 
 // export default App;
 
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom"
-import { CssBaseline, AppBar, Toolbar, Typography, Container, Box, Button } from "@mui/material"
-import Login from "./Components/Login"
-import Signup from "./Components/Signup"
-import Dashboard from "./Components/Dashboard"
-import Home from "./Components/Home"
-import Contact from "./Components/Contact"
-import AboutUs from "./Components/AboutUs"
-import MaterialSharing from "./Components/MaterialSharing" // Import the new component
-import "./App.css"
 
-const PrivateRoute = ({ element }) => {
-  const token = localStorage.getItem("token")
-  return token ? element : <Navigate to="/" replace />
-}
 
-const Navbar = () => {
-  const navigate = useNavigate()
-  const token = localStorage.getItem("token")
-  const username = localStorage.getItem("username")
+// import React, { useState } from 'react';
+// import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+// import { ThemeProvider } from './theme/ThemeContext';
+// import { AuthProvider } from './context/auth/AuthContext';
+// import { CssBaseline, Box } from '@mui/material';
+// import Home from './Components/Home';
+// import Resource from './Components/Resource';
+// import Login from './Components/Login';
+// import Signup from './Components/Signup';
+// import AboutUs from './Components/AboutUs';
+// import Contact from './Components/Contact';
+// import Profile from './Components/Profile';
+// import ProtectedRoute from './Components/ProtectedRoute';
+// import SearchForm from './Components/SearchForm';
+// import JobList from './Components/JobList';
+// //import Header from './Components/Header';
+// //import Footer from './Components/Footer';
 
-  const handleLogout = () => {
-    localStorage.removeItem("token")
-    localStorage.removeItem("username")
-    navigate("/")
-  }
+// function App() {
+//   const [jobs, setJobs] = useState([]);
+//   const [loading, setLoading] = useState(false);
+//   const [error, setError] = useState(null);
 
+//   const searchJobs = async (searchParams) => {
+//     setLoading(true);
+//     setError(null);
+
+//     try {
+//       const queryParams = new URLSearchParams();
+//       Object.entries(searchParams).forEach(([key, value]) => {
+//         if (value) queryParams.append(key, value);
+//       });
+
+//       const response = await fetch(`http://localhost:5000/api/jobs?${queryParams}`);
+
+//       if (!response.ok) {
+//         throw new Error(`Error: ${response.status}`);
+//       }
+
+//       const data = await response.json();
+//       setJobs(data);
+//     } catch (err) {
+//       setError(err.message);
+//       setJobs([]);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   return (
+//     <AuthProvider>
+//       <ThemeProvider>
+//         <CssBaseline />
+//         <Router>
+//           <Box sx={{ 
+//             minHeight: '100vh',
+//             display: 'flex',
+//             flexDirection: 'column',
+//             bgcolor: 'background.default'
+//           }}>
+//             {/* <Header /> */}
+//             <Routes>
+//               {/* Public Routes */}
+//               <Route path="/login" element={<Login />} />
+//               <Route path="/signup" element={<Signup />} />
+
+//               {/* Protected Routes */}
+//               <Route path="/" element={
+//                 <ProtectedRoute>
+//                   <Home />
+//                 </ProtectedRoute>
+//               } />
+//               <Route path="/resources" element={
+//                 <ProtectedRoute>
+//                   <Resource />
+//                 </ProtectedRoute>
+//               } />
+//               <Route path="/about" element={
+//                 <ProtectedRoute>
+//                   <AboutUs />
+//                 </ProtectedRoute>
+//               } />
+//               <Route path="/jobs" element={
+//                 <ProtectedRoute>
+//                   <Jobs />
+//                 </ProtectedRoute>
+//               } />
+//               <Route path="/contact" element={
+//                 <ProtectedRoute>
+//                   <Contact />
+//                 </ProtectedRoute>
+//               } />
+//               <Route path="/profile" element={
+//                 <ProtectedRoute>
+//                   <Profile />
+//                 </ProtectedRoute>
+//               } />
+              
+//               {/* Integrated Job Search Feature */}
+//               <Route path="/jobs" element={
+//                 <Box className="main-content">
+//                   <SearchForm onSearch={searchJobs} />
+//                   {error && <div className="error-message">Error: {error}</div>}
+//                   {loading ? (
+//                     <div className="loading">
+//                       <div className="spinner"></div>
+//                       <p>Searching for jobs...</p>
+//                     </div>
+//                   ) : (
+//                     <JobList jobs={jobs} />
+//                   )}
+//                 </Box>
+//               } />
+
+//               {/* Catch all route */}
+//               <Route path="*" element={<Navigate to="/" replace />} />
+//             </Routes>
+//             {/* <Footer /> */}
+//           </Box>
+//         </Router>
+//       </ThemeProvider>
+//     </AuthProvider>
+//   );
+// }
+
+// export default App;
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider } from './theme/ThemeContext';
+import { AuthProvider } from './context/auth/AuthContext';
+import { CssBaseline, Box } from '@mui/material';
+import Home from './Components/Home';
+import Resource from './Components/Resource';
+import Login from './Components/Login';
+import Signup from './Components/Signup';
+import AboutUs from './Components/AboutUs';
+import Contact from './Components/Contact';
+import Profile from './Components/Profile';
+import ProtectedRoute from './Components/ProtectedRoute';
+//import SearchForm from './Components/SearchForm';
+//import JobList from './Components/JobList';
+import Jobs from './Components/Jobs';
+//import SearchForm from './Components/SearchForm';
+//import Header from './Components/Header';
+//import Footer from './Components/Footer';
+
+function App() {  
   return (
-    <AppBar position="static" className="navbar">
-      <Toolbar>
-        {/* Left Side (Logo + Navigation Buttons) */}
-        <Typography variant="h6" className="navbar-title" sx={{ flexGrow: 1 }}>
-          Academic Platform
-        </Typography>
-        {token && (
-          <>
-            <Button color="inherit" onClick={() => navigate("/home")} className="navbar-button">
-              Home
-            </Button>
-            <Button color="inherit" onClick={() => navigate("/materials")} className="navbar-button">
-              Materials
-            </Button>
-            <Button color="inherit" onClick={handleLogout} className="navbar-button">
-              Logout
-            </Button>
-          </>
-        )}
-
-        {/* Right Side (Username) */}
-        {token && username && (
-          <Typography variant="body1" className="navbar-username" sx={{ marginLeft: "auto", fontSize: "0.9rem" }}>
-            Welcome, {username}
-          </Typography>
-        )}
-      </Toolbar>
-    </AppBar>
-  )
-}
-
-const App = () => {
-  return (
-    <>
-      <CssBaseline />
-      <Router>
-        <Navbar />
-        <Box className="app-container">
-          <Container maxWidth="md">
+    <AuthProvider>
+      <ThemeProvider>
+        <CssBaseline />
+        <Router>
+          <Box sx={{ 
+            minHeight: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            bgcolor: 'background.default'
+          }}>
+            {/* <Header /> */}
             <Routes>
-              <Route path="/" element={<Login />} />
+              {/* Public Routes */}
+              <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
-              <Route path="/home" element={<PrivateRoute element={<Home />} />} />
-              <Route path="/dashboard" element={<PrivateRoute element={<Dashboard />} />} />
-              <Route path="/contact" element={<PrivateRoute element={<Contact />} />} />
-              <Route path="/about-us" element={<PrivateRoute element={<AboutUs />} />} />
-              <Route path="/materials" element={<PrivateRoute element={<MaterialSharing />} />} />
-              <Route
-                path="*"
-                element={
-                  <Typography variant="h4" align="center">
-                    404: Page Not Found
-                  </Typography>
-                }
-              />
+
+              {/* Protected Routes */}
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <Home />
+                </ProtectedRoute>
+              } />
+              <Route path="/resources" element={
+                <ProtectedRoute>
+                  <Resource />
+                </ProtectedRoute>
+              } />
+              <Route path="/about" element={
+                <ProtectedRoute>
+                  <AboutUs />
+                </ProtectedRoute>
+              } />
+              <Route path="/contact" element={
+                <ProtectedRoute>
+                  <Contact />
+                </ProtectedRoute>
+              } />
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              } />
+              {/* New Jobs Route */}
+              <Route path="/jobs" element={
+                <ProtectedRoute>
+                  <Jobs />
+                </ProtectedRoute>
+              } />
+              {/* Catch all route */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
-          </Container>
-        </Box>
-      </Router>
-    </>
-  )
+            {/* <Footer /> */}
+          </Box>
+        </Router>
+      </ThemeProvider>
+    </AuthProvider>
+  );
 }
 
-export default App
-
+export default App;

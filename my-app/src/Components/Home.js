@@ -1,44 +1,176 @@
 // Home.js - Main Home Page after Login
 
-import React from "react";
-import { useNavigate } from "react-router-dom";
-import { Container, Typography, Button, Box, Paper } from "@mui/material";
-import "./Home.css";
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Container,
+  Box,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  CardMedia,
+  Button,
+  useTheme,
+  useMediaQuery,
+} from '@mui/material';
+import {
+  School as SchoolIcon,
+  Book as BookIcon,
+  Group as GroupIcon,
+  ContactMail as ContactIcon,
+  ArrowForward as ArrowForwardIcon,
+  EmojiEvents,
+} from '@mui/icons-material';
+import PageHeader from './PageHeader';
+
+const sections = [
+  {
+    title: 'Resources',
+    description: 'Access a vast collection of study materials, notes, and educational resources shared by students and educators.',
+    icon: <BookIcon sx={{ fontSize: 40 }} />,
+    path: '/resources',
+    image: 'https://source.unsplash.com/random/800x600?education',
+    color: '#1976d2',
+  },
+  {
+    title: 'About Us',
+    description: 'Learn about our mission, values, and the team behind the Academic Resource Portal.',
+    icon: <SchoolIcon sx={{ fontSize: 40 }} />,
+    path: '/about',
+    image: 'https://source.unsplash.com/random/800x600?university',
+    color: '#2e7d32',
+  },
+  {
+    title: 'Community',
+    description: 'Join our growing community of students and educators. Share knowledge and learn together.',
+    icon: <GroupIcon sx={{ fontSize: 40 }} />,
+    path: '/community',
+    image: 'https://source.unsplash.com/random/800x600?students',
+    color: '#ed6c02',
+  },
+  {
+    title: 'Contact',
+    description: 'Get in touch with us. We\'re here to help and answer any questions you may have.',
+    icon: <ContactIcon sx={{ fontSize: 40 }} />,
+    path: '/contact',
+    image: 'https://source.unsplash.com/random/800x600?contact',
+    color: '#9c27b0',
+  },
+];
 
 const Home = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const navigate = useNavigate();
 
+  const features = [
+    {
+      icon: <SchoolIcon sx={{ fontSize: 40 }} />,
+      title: 'Educational Resources',
+      description: 'Access a vast collection of study materials, notes, and resources shared by students and educators.',
+    },
+    {
+      icon: <GroupIcon sx={{ fontSize: 40 }} />,
+      title: 'Community Learning',
+      description: 'Connect with peers, share knowledge, and collaborate on projects in a supportive environment.',
+    },
+    {
+      icon: <BookIcon sx={{ fontSize: 40 }} />,
+      title: 'Interactive Learning',
+      description: 'Engage with interactive content, quizzes, and discussions to enhance your learning experience.',
+    },
+    {
+      icon: <EmojiEvents sx={{ fontSize: 40 }} />,
+      title: 'Achievement System',
+      description: 'Track your progress, earn badges, and celebrate your learning milestones.',
+    },
+  ];
+
   return (
-    <Container maxWidth="md" className="home-container">
-      <Paper elevation={6} className="home-card">
-        <Typography variant="h3" className="home-title">
-          Welcome to the Academic Platform
-        </Typography>
-        <Typography variant="h6" className="home-subtitle">
-          A platform to share and access academic resources easily.
-        </Typography>
-        <Typography className="home-description">
-          Your one stop solution for all the resources, internship and placement discussions and access to MATHS community.
-        </Typography>
-        <Box className="home-buttons">
-          <Button variant="contained" color="primary" onClick={() => navigate("/about-us")}>
-            About Us
-          </Button>
-          <Button variant="contained" color="primary" onClick={() => navigate("/dashboard")}> 
-            Resources
-          </Button>
-          <Button variant="contained" color="primary" onClick={() => navigate("/discussion")}>
-            Internships and Placements Discussion
-          </Button>
-          <Button variant="contained" color="primary" onClick={() => navigate("/opportunities")}>
-            Internships and Placements Opportunities
-          </Button>
-          <Button variant="contained" color="primary" onClick={() => navigate("/contact")}>
-            Contact Us
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+      <PageHeader title="Welcome to Academic Platform" />
+      
+      <Container maxWidth="lg" sx={{ py: 8 }}>
+        <Box sx={{ textAlign: 'center', mb: 8 }}>
+          <Typography
+            variant="h2"
+            component="h1"
+            gutterBottom
+            sx={{
+              fontWeight: 700,
+              mb: 3,
+            }}
+          >
+            Your Gateway to Academic Excellence
+          </Typography>
+          <Typography
+            variant="h5"
+            color="text.secondary"
+            sx={{ mb: 4, maxWidth: '800px', mx: 'auto' }}
+          >
+            Join our community of learners and educators to share knowledge, collaborate, and grow together.
+          </Typography>
+          <Button
+            variant="contained"
+            size="large"
+            sx={{
+              px: 4,
+              py: 1.5,
+              borderRadius: 2,
+            }}
+          >
+            Get Started
           </Button>
         </Box>
-      </Paper>
-    </Container>
+
+        <Grid container spacing={4}>
+          {features.map((feature, index) => (
+            <Grid item xs={12} sm={6} md={3} key={index}>
+              <Card
+                sx={{
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'translateY(-8px)',
+                  },
+                }}
+              >
+                <CardContent sx={{ flexGrow: 1, textAlign: 'center' }}>
+                  <Box
+                    sx={{
+                      color: 'primary.main',
+                      mb: 2,
+                      display: 'flex',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {feature.icon}
+                  </Box>
+                  <Typography
+                    variant="h6"
+                    component="h3"
+                    gutterBottom
+                    sx={{ fontWeight: 600 }}
+                  >
+                    {feature.title}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 2 }}
+                  >
+                    {feature.description}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      </Container>
+    </Box>
   );
 };
 
