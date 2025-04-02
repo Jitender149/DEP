@@ -252,6 +252,7 @@ import {
   Info,
   ContactMail,
   Work, // Added Work icon for Jobs
+  WorkOutline, // Added WorkOutline icon for Internships and Placements
 } from '@mui/icons-material';
 import { useTheme as useCustomTheme } from '../theme/ThemeContext';
 import { useAuth } from '../context/auth/AuthContext';
@@ -287,6 +288,7 @@ const PageHeader = ({ title }) => {
     { text: 'Home', icon: <Home />, path: '/' },
     { text: 'Resources', icon: <School />, path: '/resources' },
     { text: 'Jobs', icon: <Work />, path: '/jobs' }, // Added Jobs menu item
+    { text: "Internships & Placements", icon: <WorkOutline />, path: "/internships-placements" }, // Add this new menu item
     { text: 'About Us', icon: <Info />, path: '/about' },
     { text: 'Contact', icon: <ContactMail />, path: '/contact' },
   ];

@@ -223,7 +223,7 @@ const Resource = () => {
     setIsLoading(true);
     const token = localStorage.getItem('token');
     try {
-      const response = await axios.get('http://127.0.0.1:5000/recent-uploads', {
+      const response = await axios.get('http://localhost:5000/recent-uploads', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setMaterials(response.data.materials);
@@ -307,27 +307,27 @@ const Resource = () => {
 
       // Create FormData
       const formData = new FormData();
-      formData.append('course_code', courseCode);
-      formData.append('description', description);
-      formData.append('tags', selectedTags.join(','));
+      formData.append("course_code", courseCode);
+      formData.append("description", description);
+      formData.append("tags", selectedTags.join(','));
       
-      if (year) formData.append('year', year);
-      if (uploadSemester) formData.append('semester', uploadSemester);
+      if (year) formData.append("year", year);
+      if (uploadSemester) formData.append("semester", uploadSemester);
 
       // Add either file or link
       if (selectedFile) {
-        formData.append('file', selectedFile);
+        formData.append("file", selectedFile);
       } else if (link) {
-        formData.append('link', link);
+        formData.append("link", link);
       }
 
       const response = await axios.post(
-        'http://127.0.0.1:5000/uploads',
+        'http://localhost:5000/uploads',
         formData,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
+            // 'Content-Type': 'multipart/form-data'
           }
         }
       );
@@ -363,7 +363,7 @@ const Resource = () => {
       // If clicking the same vote type, remove the vote
       if (currentVote === voteType) {
         const response = await axios.post(
-          `http://127.0.0.1:5000/uploads/${materialId}/vote`,
+          `http://localhost:5000/uploads/${materialId}/vote`,
           { type: 'remove' },
           {
             headers: { Authorization: `Bearer ${token}` }
@@ -388,7 +388,7 @@ const Resource = () => {
       } else {
         // If changing vote or voting for the first time
         const response = await axios.post(
-          `http://127.0.0.1:5000/uploads/${materialId}/vote`,
+          `http://localhost:5000/uploads/${materialId}/vote`,
           { 
             type: voteType,
             previous_vote: currentVote // Send the previous vote to backend
@@ -460,7 +460,7 @@ const Resource = () => {
     setIsLoadingComments(true);
     const token = localStorage.getItem('token');
     try {
-      const response = await axios.get(`http://127.0.0.1:5000/uploads/${materialId}/comments`, {
+      const response = await axios.get(`http://localhost:5000/uploads/${materialId}/comments`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setComments(response.data.comments);
@@ -478,7 +478,7 @@ const Resource = () => {
     const token = localStorage.getItem('token');
     try {
       const response = await axios.post(
-        `http://127.0.0.1:5000/uploads/${currentMaterialId}/comments`,
+        `http://localhost:5000/uploads/${currentMaterialId}/comments`,
         { text: commentText },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -517,7 +517,7 @@ const Resource = () => {
   const handleDelete = async (materialId) => {
     try {
       const response = await axios.delete(
-        `http://127.0.0.1:5000/uploads/${materialId}`,
+        `http://localhost:5000/uploads/${materialId}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -791,7 +791,7 @@ const Resource = () => {
       if (searchSemester) params.append('semester', searchSemester);
       searchTags.forEach(tag => params.append('tags', tag));
 
-      const response = await axios.get(`http://127.0.0.1:5000/search?${params.toString()}`, {
+      const response = await axios.get(`http://localhost:5000/search?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 

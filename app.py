@@ -15,6 +15,9 @@ from flasgger import Swagger, swag_from
 import re
 import logging
 import requests
+from bs4 import BeautifulSoup
+import re
+import json
 
 # Load environment variables from .env file
 load_dotenv()
@@ -110,6 +113,69 @@ class Vote(db.Model):
     __table_args__ = (
         db.UniqueConstraint('upload_id', 'user', name='unique_user_vote'),
     )
+
+# Model for placement data
+class Placement(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company = db.Column(db.String(100), nullable=False)
+    type = db.Column(db.String(20), nullable=False)  # 'Internship' or 'Placement'
+    mode = db.Column(db.String(20), nullable=False)  # 'On Campus' or 'Off Campus'
+    year = db.Column(db.String(4), nullable=False)
+    role = db.Column(db.String(100), nullable=False)
+    referral = db.Column(db.String(3), nullable=False)  # 'Yes' or 'No'
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by = db.Column(db.String(80), nullable=False)
+
+class PlacementPerson(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    placement_id = db.Column(db.Integer, db.ForeignKey('placement.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    resume_url = db.Column(db.String(500), nullable=True)
+    resume_public_id = db.Column(db.String(200), nullable=True)
+
+
+# Model for interview experiences
+class InterviewExperience(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company = db.Column(db.String(100), nullable=False)
+    candidate_name = db.Column(db.String(100), nullable=False)
+    interviewer_name = db.Column(db.String(100), nullable=True)
+    year = db.Column(db.String(4), nullable=False)
+    type = db.Column(db.String(20), nullable=False)  # 'Internship' or 'Placement'
+    tips = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by = db.Column(db.String(80), nullable=False)
+    tags = db.Column(db.String(200), nullable=True)  # Comma-separated tags
+
+class InterviewQuestion(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    interview_id = db.Column(db.Integer, db.ForeignKey('interview_experience.id'), nullable=False)
+    question = db.Column(db.Text, nullable=False)
+    answer = db.Column(db.Text, nullable=False)
+
+# Classroom type discussion backend
+class Classroom(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    created_by = db.Column(db.String(80), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class ClassroomMembership(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(80), nullable=False)
+    classroom_id = db.Column(db.Integer, db.ForeignKey('classroom.id'), nullable=False)
+    joined_at = db.Column(db.DateTime, default=datetime.utcnow)
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'classroom_id', name='unique_user_classroom'),
+    )
+
+class ClassroomMessage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(80), nullable=False)
+    classroom_id = db.Column(db.Integer, db.ForeignKey('classroom.id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 # Helper function for allowed file extensions
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'docx', 'txt'}
@@ -264,11 +330,11 @@ def upload_file():
             try:
                 # Upload to Cloudinary
                 upload_result = cloudinary.uploader.upload(
-                    file,
+                    file.stream,
                     folder="material_sharing",
                     resource_type="auto"
                 )
-                
+                print("Upload Result:", upload_result)
                 file_url = upload_result.get('secure_url')
                 public_id = upload_result.get('public_id')
                 file_type = os.path.splitext(file.filename)[1][1:].lower()
@@ -306,6 +372,8 @@ def upload_file():
             )
         else:
             return jsonify({'message': 'Either a file or link must be provided'}), 400
+        # print("Received Files:", request.files)
+        # print("Received Form Data:", request.form)
 
         # Save to database
         try:
@@ -785,7 +853,690 @@ def get_jobs():
         return jsonify({"error": str(e)}), 500
 
 
+# Routes for placement data
+@app.route('/placements', methods=['GET'])
+@jwt_required()
+def get_placements():
+    try:
+        placements = Placement.query.order_by(Placement.created_at.desc()).all()
+        
+        result = []
+        for placement in placements:
+            # Get people associated with this placement
+            people = PlacementPerson.query.filter_by(placement_id=placement.id).all()
+            
+            people_data = []
+            for person in people:
+                people_data.append({
+                    'id': person.id,
+                    'name': person.name,
+                    'resume_url': person.resume_url
+                })
+            
+            result.append({
+                'id': placement.id,
+                'company': placement.company,
+                'type': placement.type,
+                'mode': placement.mode,
+                'year': placement.year,
+                'role': placement.role,
+                'referral': placement.referral,
+                'created_at': placement.created_at.isoformat(),
+                'created_by': placement.created_by,
+                'people': people_data
+            })
+        
+        return jsonify({'placements': result}), 200
+    except Exception as e:
+        return jsonify({'message': f'Error fetching placements: {str(e)}'}), 500
 
+@app.route('/placements', methods=['POST'])
+@jwt_required()
+def add_placement():
+    try:
+        current_user = get_jwt_identity()
+        
+        # Get form data
+        company = request.form.get('company')
+        placement_type = request.form.get('type')
+        mode = request.form.get('mode')
+        year = request.form.get('year')
+        role = request.form.get('role')
+        referral = request.form.get('referral')
+        
+        # Validate required fields
+        if not company or not placement_type or not mode or not year or not role:
+            return jsonify({'message': 'Missing required fields'}), 400
+        
+        # Create new placement
+        new_placement = Placement(
+            company=company,
+            type=placement_type,
+            mode=mode,
+            year=year,
+            role=role,
+            referral=referral,
+            created_by=current_user
+        )
+        
+        db.session.add(new_placement)
+        db.session.flush()  # Get the ID without committing
+        
+        # Process people data
+        people_data = []
+        
+        # Determine how many people were submitted
+        person_count = 0
+        for key in request.form.keys():
+            if key.startswith('people[') and key.endswith('][name]'):
+                person_count = max(person_count, int(key.split('[')[1].split(']')[0]) + 1)
+        
+        for i in range(person_count):
+            name_key = f'people[{i}][name]'
+            name = request.form.get(name_key)
+            
+            if name:
+                resume_url = None
+                resume_public_id = None
+                
+                # Check if a resume was uploaded for this person
+                resume_key = f'people[{i}][resume]'
+                if resume_key in request.files and request.files[resume_key].filename:
+                    file = request.files[resume_key]
+                    
+                    # if not allowe 
+                    # file = request.files[resume_key]
+                    
+                    if not allowed_file(file.filename):
+                        return jsonify({'message': f'Invalid file type for resume. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'}), 400
+                    
+                    # Upload to Cloudinary
+                    upload_result = cloudinary.uploader.upload(
+                        file,
+                        folder="placements",
+                        resource_type="raw"
+                    )
+                    
+                    resume_url = upload_result.get('secure_url')
+                    resume_public_id = upload_result.get('public_id')
+                
+                # Create person record
+                new_person = PlacementPerson(
+                    placement_id=new_placement.id,
+                    name=name,
+                    resume_url=resume_url,
+                    resume_public_id=resume_public_id
+                )
+                
+                db.session.add(new_person)
+                
+                people_data.append({
+                    'name': name,
+                    'resume_url': resume_url
+                })
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Placement added successfully',
+            'placement': {
+                'id': new_placement.id,
+                'company': new_placement.company,
+                'type': new_placement.type,
+                'mode': new_placement.mode,
+                'year': new_placement.year,
+                'role': new_placement.role,
+                'referral': new_placement.referral,
+                'people': people_data
+            }
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': f'Error adding placement: {str(e)}'}), 500
+
+@app.route('/placements/search', methods=['GET'])
+@jwt_required()
+def search_placements():
+    try:
+        # Get search parameters
+        company = request.args.get('company', '')
+        year = request.args.get('year', '')
+        placement_type = request.args.get('type', '')
+        
+        # Build the query
+        query = Placement.query
+        
+        if company:
+            query = query.filter(Placement.company.like(f'%{company}%'))
+        
+        if year:
+            query = query.filter(Placement.year == year)
+        
+        if placement_type:
+            query = query.filter(Placement.type == placement_type)
+        
+        # Get results
+        placements = query.order_by(Placement.created_at.desc()).all()
+        
+        result = []
+        for placement in placements:
+            # Get people associated with this placement
+            people = PlacementPerson.query.filter_by(placement_id=placement.id).all()
+            
+            people_data = []
+            for person in people:
+                people_data.append({
+                    'id': person.id,
+                    'name': person.name,
+                    'resume_url': person.resume_url
+                })
+            
+            result.append({
+                'id': placement.id,
+                'company': placement.company,
+                'type': placement.type,
+                'mode': placement.mode,
+                'year': placement.year,
+                'role': placement.role,
+                'referral': placement.referral,
+                'created_at': placement.created_at.isoformat(),
+                'created_by': placement.created_by,
+                'people': people_data
+            })
+        
+        return jsonify({'placements': result}), 200
+    except Exception as e:
+        return jsonify({'message': f'Error searching placements: {str(e)}'}), 500
+
+
+# Routes for interview experiences
+@app.route('/interview-experiences', methods=['GET'])
+@jwt_required()
+def get_interview_experiences():
+    try:
+        # Get search parameters
+        company = request.args.get('company', '')
+        year = request.args.get('year', '')
+        interview_type = request.args.get('type', '')
+        
+        # Build the query
+        query = InterviewExperience.query
+        
+        if company:
+            query = query.filter(InterviewExperience.company.like(f'%{company}%'))
+        
+        if year:
+            query = query.filter(InterviewExperience.year == year)
+        
+        if interview_type:
+            query = query.filter(InterviewExperience.type == interview_type)
+        
+        # Get results
+        interviews = query.order_by(InterviewExperience.created_at.desc()).all()
+        
+        result = []
+        for interview in interviews:
+            # Get questions associated with this interview
+            questions = InterviewQuestion.query.filter_by(interview_id=interview.id).all()
+            
+            questions_data = []
+            for question in questions:
+                questions_data.append({
+                    'id': question.id,
+                    'question': question.question,
+                    'answer': question.answer
+                })
+            
+            # Parse tags
+            tags = interview.tags.split(',') if interview.tags else []
+            
+            result.append({
+                'id': interview.id,
+                'company': interview.company,
+                'candidateName': interview.candidate_name,
+                'interviewerName': interview.interviewer_name,
+                'year': interview.year,
+                'type': interview.type,
+                'tips': interview.tips,
+                'created_at': interview.created_at.isoformat(),
+                'created_by': interview.created_by,
+                'tags': tags,
+                'questions': questions_data
+            })
+        
+        return jsonify({'interviews': result}), 200
+    except Exception as e:
+        return jsonify({'message': f'Error fetching interview experiences: {str(e)}'}), 500
+
+@app.route('/interview-experiences', methods=['POST'])
+@jwt_required()
+def add_interview_experience():
+    try:
+        current_user = get_jwt_identity()
+        data = request.get_json()
+        
+        # Validate required fields
+        if not data.get('company') or not data.get('candidateName') or not data.get('year') or not data.get('type'):
+            return jsonify({'message': 'Missing required fields'}), 400
+        
+        if not data.get('questions') or len(data.get('questions')) == 0:
+            return jsonify({'message': 'At least one question is required'}), 400
+        
+        # Process tags
+        tags = ','.join(data.get('tags', [])) if data.get('tags') else ''
+        
+        # Create new interview experience
+        new_interview = InterviewExperience(
+            company=data.get('company'),
+            candidate_name=data.get('candidateName'),
+            interviewer_name=data.get('interviewerName', ''),
+            year=data.get('year'),
+            type=data.get('type'),
+            tips=data.get('tips', ''),
+            created_by=current_user,
+            tags=tags
+        )
+        
+        db.session.add(new_interview)
+        db.session.flush()  # Get the ID without committing
+        
+        # Process questions
+        questions_data = []
+        for q in data.get('questions', []):
+            if q.get('question') and q.get('answer'):
+                new_question = InterviewQuestion(
+                    interview_id=new_interview.id,
+                    question=q.get('question'),
+                    answer=q.get('answer')
+                )
+                
+                db.session.add(new_question)
+                
+                questions_data.append({
+                    'question': q.get('question'),
+                    'answer': q.get('answer')
+                })
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Interview experience added successfully',
+            'interview': {
+                'id': new_interview.id,
+                'company': new_interview.company,
+                'candidateName': new_interview.candidate_name,
+                'interviewerName': new_interview.interviewer_name,
+                'year': new_interview.year,
+                'type': new_interview.type,
+                'tips': new_interview.tips,
+                'tags': data.get('tags', []),
+                'questions': questions_data
+            }
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': f'Error adding interview experience: {str(e)}'}), 500
+
+@app.route('/interview-experiences/<int:interview_id>', methods=['GET'])
+@jwt_required()
+def get_interview_experience(interview_id):
+    try:
+        interview = InterviewExperience.query.get(interview_id)
+        
+        if not interview:
+            return jsonify({'message': 'Interview experience not found'}), 404
+        
+        # Get questions associated with this interview
+        questions = InterviewQuestion.query.filter_by(interview_id=interview.id).all()
+        
+        questions_data = []
+        for question in questions:
+            questions_data.append({
+                'id': question.id,
+                'question': question.question,
+                'answer': question.answer
+            })
+        
+        # Parse tags
+        tags = interview.tags.split(',') if interview.tags else []
+        
+        return jsonify({
+            'interview': {
+                'id': interview.id,
+                'company': interview.company,
+                'candidateName': interview.candidate_name,
+                'interviewerName': interview.interviewer_name,
+                'year': interview.year,
+                'type': interview.type,
+                'tips': interview.tips,
+                'created_at': interview.created_at.isoformat(),
+                'created_by': interview.created_by,
+                'tags': tags,
+                'questions': questions_data
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({'message': f'Error fetching interview experience: {str(e)}'}), 500
+
+
+# @app.route('/api/duckduckgo-search', methods=['GET'])
+# def duckduckgo_search():
+#     query = request.args.get('q')
+    
+#     if not query:
+#         return jsonify({'error': 'Missing search query'}), 400
+    
+#     try:
+#         # DuckDuckGo search
+#         headers = {
+#             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+#         }
+#         response = requests.get(
+#             f'https://html.duckduckgo.com/html/?q={query}',
+#             headers=headers
+#         )
+        
+#         if response.status_code != 200:
+#             return jsonify({'error': 'Failed to fetch search results'}), 500
+        
+#         # Parse the HTML response
+#         soup = BeautifulSoup(response.text, 'html.parser')
+#         results = []
+        
+#         # Extract search results
+#         for result in soup.select('.result'):
+#             title_elem = result.select_one('.result__a')
+#             snippet_elem = result.select_one('.result__snippet')
+            
+#             if title_elem and title_elem.get('href'):
+#                 title = title_elem.get_text(strip=True)
+#                 url = title_elem.get('href')
+#                 description = snippet_elem.get_text(strip=True) if snippet_elem else ''
+                
+#                 results.append({
+#                     'title': title,
+#                     'url': url,
+#                     'description': description
+#                 })
+        
+#         return jsonify({'results': results})
+    
+#     except Exception as e:
+#         return jsonify({'error': str(e)}), 500
+# app.py (Flask backend)
+
+
+@app.route('/api/search-dsa', methods=['POST'])
+def search_dsa():
+    data = request.json
+    query = data.get('query', '')
+    sites = data.get('sites', [])
+    
+    if not query:
+        return jsonify({"error": "Query is required"}), 400
+    
+    # Format site-specific search query for DuckDuckGo
+    site_restrictions = " OR ".join([f"site:{site}" for site in sites])
+    search_query = f"{query} ({site_restrictions})"
+    
+    try:
+        # Using DuckDuckGo HTML API (they don't have an official API)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        response = requests.get(
+            f"https://html.duckduckgo.com/html/?q={search_query}",
+            headers=headers
+        )
+        
+        if response.status_code != 200:
+            return jsonify({"error": "Failed to fetch search results"}), 500
+        
+        # Parse the HTML response
+        soup = BeautifulSoup(response.text, 'html.parser')
+        results = []
+        
+        # Extract search results
+        for result in soup.select('.result'):
+            title_elem = result.select_one('.result__title')
+            url_elem = result.select_one('.result__url')
+            snippet_elem = result.select_one('.result__snippet')
+            
+            if title_elem and url_elem:
+                title = title_elem.get_text(strip=True)
+                url = url_elem.get('href') if url_elem.get('href') else url_elem.get_text(strip=True)
+                
+                # Clean URL if it's from DuckDuckGo's redirect
+                if '/duckduckgo.com/' in url:
+                    url_match = re.search(r'uddg=([^&]+)', url)
+                    if url_match:
+                        url = requests.utils.unquote(url_match.group(1))
+                
+                # Identify source website
+                source = None
+                for site in sites:
+                    if site in url:
+                        source = site
+                        break
+                
+                snippet = snippet_elem.get_text(strip=True) if snippet_elem else ""
+                
+                results.append({
+                    "title": title,
+                    "url": url,
+                    "snippet": snippet,
+                    "source": source
+                })
+                
+                # Limit to 10 results
+                if len(results) >= 20:
+                    break
+        
+        return jsonify({"results": results})
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# classroom type discussion backend
+@app.route('/api/classroom/create', methods=['POST'])
+@jwt_required()
+def create_classroom():
+    try:
+        current_user = get_jwt_identity()
+        data = request.get_json()
+        
+        if not data or not data.get('name'):
+            return jsonify({'message': 'Classroom name is required'}), 400
+        
+        new_classroom = Classroom(
+            name=data.get('name'),
+            description=data.get('description', ''),
+            created_by=current_user
+        )
+        
+        db.session.add(new_classroom)
+        db.session.flush()  # Get the ID without committing
+        
+        # Add creator as a member
+        membership = ClassroomMembership(
+            user_id=current_user,
+            classroom_id=new_classroom.id
+        )
+        
+        db.session.add(membership)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Classroom created successfully',
+            'classroom': {
+                'id': new_classroom.id,
+                'name': new_classroom.name,
+                'description': new_classroom.description,
+                'created_by': new_classroom.created_by,
+                'created_at': new_classroom.created_at.isoformat()
+            }
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': f'Error creating classroom: {str(e)}'}), 500
+
+@app.route('/api/classroom/join', methods=['POST'])
+@jwt_required()
+def join_classroom():
+    try:
+        current_user = get_jwt_identity()
+        data = request.get_json()
+        
+        if not data or not data.get('classroom_id'):
+            return jsonify({'message': 'Classroom ID is required'}), 400
+        
+        classroom_id = data.get('classroom_id')
+        
+        # Check if classroom exists
+        classroom = Classroom.query.get(classroom_id)
+        if not classroom:
+            return jsonify({'message': 'Classroom not found'}), 404
+        
+        # Check if user is already a member
+        existing_membership = ClassroomMembership.query.filter_by(
+            user_id=current_user,
+            classroom_id=classroom_id
+        ).first()
+        
+        if existing_membership:
+            return jsonify({'message': 'You are already a member of this classroom'}), 400
+        
+        # Add user as a member
+        membership = ClassroomMembership(
+            user_id=current_user,
+            classroom_id=classroom_id
+        )
+        
+        db.session.add(membership)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Joined classroom successfully',
+            'classroom': {
+                'id': classroom.id,
+                'name': classroom.name,
+                'description': classroom.description,
+                'created_by': classroom.created_by,
+                'created_at': classroom.created_at.isoformat()
+            }
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': f'Error joining classroom: {str(e)}'}), 500
+
+@app.route('/api/classrooms', methods=['GET'])
+@jwt_required()
+def get_classrooms():
+    try:
+        current_user = get_jwt_identity()
+        
+        # Get all classrooms the user is a member of
+        memberships = ClassroomMembership.query.filter_by(user_id=current_user).all()
+        classroom_ids = [membership.classroom_id for membership in memberships]
+        
+        classrooms = Classroom.query.filter(Classroom.id.in_(classroom_ids)).all()
+        
+        result = []
+        for classroom in classrooms:
+            result.append({
+                'id': classroom.id,
+                'name': classroom.name,
+                'description': classroom.description,
+                'created_by': classroom.created_by,
+                'created_at': classroom.created_at.isoformat()
+            })
+        
+        return jsonify({'classrooms': result}), 200
+    except Exception as e:
+        return jsonify({'message': f'Error fetching classrooms: {str(e)}'}), 500
+
+@app.route('/api/classroom/<int:classroom_id>/message', methods=['POST'])
+@jwt_required()
+def send_message(classroom_id):
+    try:
+        current_user = get_jwt_identity()
+        data = request.get_json()
+        
+        if not data or not data.get('content'):
+            return jsonify({'message': 'Message content is required'}), 400
+        
+        # Check if classroom exists
+        classroom = Classroom.query.get(classroom_id)
+        if not classroom:
+            return jsonify({'message': 'Classroom not found'}), 404
+        
+        # Check if user is a member
+        membership = ClassroomMembership.query.filter_by(
+            user_id=current_user,
+            classroom_id=classroom_id
+        ).first()
+        
+        if not membership:
+            return jsonify({'message': 'You are not a member of this classroom'}), 403
+        
+        # Create new message
+        new_message = ClassroomMessage(
+            user_id=current_user,
+            classroom_id=classroom_id,
+            content=data.get('content')
+        )
+        
+        db.session.add(new_message)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Message sent successfully',
+            'message': {
+                'id': new_message.id,
+                'user_id': new_message.user_id,
+                'content': new_message.content,
+                'timestamp': new_message.timestamp.isoformat()
+            }
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': f'Error sending message: {str(e)}'}), 500
+
+@app.route('/api/classroom/<int:classroom_id>/messages', methods=['GET'])
+@jwt_required()
+def get_messages(classroom_id):
+    try:
+        current_user = get_jwt_identity()
+        
+        # Check if classroom exists
+        classroom = Classroom.query.get(classroom_id)
+        if not classroom:
+            return jsonify({'message': 'Classroom not found'}), 404
+        
+        # Check if user is a member
+        membership = ClassroomMembership.query.filter_by(
+            user_id=current_user,
+            classroom_id=classroom_id
+        ).first()
+        
+        if not membership:
+            return jsonify({'message': 'You are not a member of this classroom'}), 403
+        
+        # Get all messages for this classroom
+        messages = ClassroomMessage.query.filter_by(classroom_id=classroom_id).order_by(ClassroomMessage.timestamp.asc()).all()
+        
+        result = []
+        for message in messages:
+            result.append({
+                'id': message.id,
+                'user_id': message.user_id,
+                'content': message.content,
+                'timestamp': message.timestamp.isoformat()
+            })
+        
+        return jsonify({'messages': result}), 200
+    except Exception as e:
+        return jsonify({'message': f'Error fetching messages: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
