@@ -2289,6 +2289,58 @@ def update_profile():
         print(f"Error updating profile: {str(e)}")
         return jsonify({'message': 'Failed to update profile'}), 500
 
+# profile picture upload handling
+@app.route('/upload-profile-picture', methods=['POST'])
+@jwt_required()
+def upload_profile_picture():
+    try:
+        current_user = get_jwt_identity()
+        
+        # Check if user exists
+        user = User.query.filter_by(username=current_user).first()
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
+        
+        # Handle file upload
+        if 'file' not in request.files:
+            return jsonify({'message': 'No file part'}), 400
+            
+        file = request.files['file']
+        
+        if file.filename == '':
+            return jsonify({'message': 'No selected file'}), 400
+
+        if not allowed_file(file.filename):
+            return jsonify({'message': f'File type not allowed. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'}), 400
+
+        try:
+            # Upload to Cloudinary in the profile-pic folder
+            upload_result = cloudinary.uploader.upload(
+                file,
+                folder="profile-pic",
+                resource_type="auto"
+            )
+            
+            file_url = upload_result.get('secure_url')
+            
+            # Update user's profile picture
+            user.profile_picture = file_url
+            db.session.commit()
+            
+            return jsonify({
+                'message': 'Profile picture updated successfully',
+                'profile_picture': file_url
+            }), 200
+            
+        except Exception as cloudinary_error:
+            print(f"Cloudinary error: {str(cloudinary_error)}")
+            return jsonify({'message': 'Error uploading to cloud storage'}), 500
+            
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error uploading profile picture: {str(e)}")
+        return jsonify({'message': f'Error uploading profile picture: {str(e)}'}), 500
+
 @app.route('/user-stats', methods=['GET'])
 @jwt_required()
 def get_user_stats():
