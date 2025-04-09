@@ -17,6 +17,7 @@ import { Refresh, Notifications } from "@mui/icons-material"
 import NoticeCard from "./NoticeCard"
 import PageHeader from "../PageHeader"
 import { trackUserAction } from "../user-state-tracker"
+import { useNavigate } from "react-router-dom"
 
 const NoticesPage = () => {
   const [notices, setNotices] = useState([])
@@ -25,6 +26,7 @@ const NoticesPage = () => {
   const [activeTab, setActiveTab] = useState(0)
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"))
+  const navigate = useNavigate()
 
   const tabs = [
     { label: "All Updates", value: "all" },
@@ -95,16 +97,17 @@ const NoticesPage = () => {
     // Navigate to the appropriate page based on notice type
     switch (notice.type) {
       case "group_message":
-        window.location.href = `http://localhost:5000/discussion?classroomId=${notice.sourceId}`
+        // For discussion groups, just navigate to the discussion page
+        navigate("/discussion")
         break
       case "material":
-        window.location.href = `http://localhost:5000/resources?materialId=${notice.sourceId}`
+        navigate(`/resources?materialId=${notice.sourceId}`)
         break
       case "placement":
-        window.location.href = `http://localhost:5000/internships-placements?placementId=${notice.sourceId}`
+        navigate(`/internships-placements?placementId=${notice.sourceId}`)
         break
       case "interview":
-        window.location.href = `http://localhost:5000/internships-placements?interviewId=${notice.sourceId}`
+        navigate(`/internships-placements?interviewId=${notice.sourceId}`)
         break
       default:
         console.log("Unknown notice type:", notice.type)
