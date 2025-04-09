@@ -102,6 +102,8 @@ import SeniorsData from "./Components/SeniorsData"
 import InterviewExperiences from "./Components/InterviewExperiences"
 import DSAResources from "./Components/DSAResource"
 import DiscussionPage from "./Components/DiscussionPage"
+import NoticesPage from "./Components/notices/NoticePage"
+import ProfileNew from "./Components/ProfileNew"
 
 function App() {
   return (
@@ -160,7 +162,7 @@ function App() {
                 path="/profile"
                 element={
                   <ProtectedRoute>
-                    <Profile />
+                    <ProfileNew />
                   </ProtectedRoute>
                 }
               />
@@ -211,6 +213,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <DiscussionPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/notices"
+                element={
+                  <ProtectedRoute>
+                    <NoticesPage />
                   </ProtectedRoute>
                 }
               />

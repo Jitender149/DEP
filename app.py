@@ -1,3 +1,4 @@
+
 # from flask import Flask, request, jsonify, send_from_directory
 # from flask_sqlalchemy import SQLAlchemy
 # from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
@@ -18,6 +19,12 @@
 # from bs4 import BeautifulSoup
 # import re
 # import json
+
+# # Update to the main Flask app to include the MDP ranking system
+# # This is the systumm bro
+# # Add these imports to the existing imports
+# from app_updates import register_updates_blueprint
+# from models import UserStateTransition, UserPreference, UpdateInteraction
 
 # # Load environment variables from .env file
 # load_dotenv()
@@ -745,6 +752,58 @@
 #         print(f"Error updating profile: {str(e)}")
 #         return jsonify({'message': 'Failed to update profile'}), 500
 
+# # profile picture upload handling
+# @app.route('/upload-profile-picture', methods=['POST'])
+# @jwt_required()
+# def upload_profile_picture():
+#     try:
+#         current_user = get_jwt_identity()
+        
+#         # Check if user exists
+#         user = User.query.filter_by(username=current_user).first()
+#         if not user:
+#             return jsonify({'message': 'User not found'}), 404
+        
+#         # Handle file upload
+#         if 'file' not in request.files:
+#             return jsonify({'message': 'No file part'}), 400
+            
+#         file = request.files['file']
+        
+#         if file.filename == '':
+#             return jsonify({'message': 'No selected file'}), 400
+
+#         if not allowed_file(file.filename):
+#             return jsonify({'message': f'File type not allowed. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'}), 400
+
+#         try:
+#             # Upload to Cloudinary in the profile-pic folder
+#             upload_result = cloudinary.uploader.upload(
+#                 file.stream,
+#                 folder="profile-pic",
+#                 resource_type="raw"
+#             )
+            
+#             file_url = upload_result.get('secure_url')
+            
+#             # Update user's profile picture
+#             user.profile_picture = file_url
+#             db.session.commit()
+            
+#             return jsonify({
+#                 'message': 'Profile picture updated successfully',
+#                 'profile_picture': file_url
+#             }), 200
+            
+#         except Exception as cloudinary_error:
+#             print(f"Cloudinary error: {str(cloudinary_error)}")
+#             return jsonify({'message': 'Error uploading to cloud storage'}), 500
+            
+#     except Exception as e:
+#         db.session.rollback()
+#         print(f"Error uploading profile picture: {str(e)}")
+#         return jsonify({'message': f'Error uploading profile picture: {str(e)}'}), 500
+
 # @app.route('/user-stats', methods=['GET'])
 # @jwt_required()
 # def get_user_stats():
@@ -756,6 +815,28 @@
         
 #         # Get user's comments count
 #         comments_count = Comment.query.filter_by(author=current_user).count()
+        
+#         # Get placements added count
+#         placements_added = Placement.query.filter_by(created_by=current_user).count()
+        
+#         # Get interview experiences added count
+#         interview_experiences_added = InterviewExperience.query.filter_by(created_by=current_user).count()
+        
+#         # Get classrooms created by user
+#         classrooms_created = Classroom.query.filter_by(created_by=current_user).all()
+#         classrooms_created_data = [{
+#             'id': classroom.id,
+#             'name': classroom.name
+#         } for classroom in classrooms_created]
+        
+#         # Get classrooms user is part of
+#         memberships = ClassroomMembership.query.filter_by(user_id=current_user).all()
+#         classroom_ids = [membership.classroom_id for membership in memberships]
+#         classrooms_joined = Classroom.query.filter(Classroom.id.in_(classroom_ids)).all()
+#         classrooms_joined_data = [{
+#             'id': classroom.id,
+#             'name': classroom.name
+#         } for classroom in classrooms_joined]
         
 #         # Get recent activity (last 5 uploads)
 #         recent_uploads = Upload.query.filter_by(author=current_user)\
@@ -772,9 +853,19 @@
 #             'downvotes': upload.downvotes
 #         } for upload in recent_uploads]
         
+#         # Create a log of searches (we need to track these in the respective search endpoints)
+#         # For now, we'll return placeholder counts that you can implement fully later
+        
 #         return jsonify({
 #             'uploads': uploads_count,
 #             'comments': comments_count,
+#             'placements_added': placements_added,
+#             'placements_searches': 0,  # Placeholder - implement tracking in search endpoint
+#             'interview_experiences_added': interview_experiences_added,
+#             'interview_experience_searches': 0,  # Placeholder - implement tracking in search endpoint
+#             'dsa_searches': 0,  # Placeholder - implement tracking in search endpoint
+#             'classrooms_created': classrooms_created_data,
+#             'classrooms_joined': classrooms_joined_data,
 #             'recent_activity': recent_activity
 #         }), 200
 #     except Exception as e:
@@ -1541,7 +1632,6 @@
 # if __name__ == '__main__':
 #     app.run(debug=True)
 
-
 from flask import Flask, request, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
@@ -1563,6 +1653,12 @@ from bs4 import BeautifulSoup
 import re
 import json
 
+# Update to the main Flask app to include the MDP ranking system
+
+# Add these imports to the existing imports
+from app_updates import register_updates_blueprint
+from models import UserStateTransition, UserPreference, UpdateInteraction
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -1577,7 +1673,9 @@ CORS(app, resources={
         "origins": ["http://localhost:3000"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
-        "expose_headers": ["Content-Range", "X-Content-Range"]
+        "expose_headers": ["Content-Range", "X-Content-Range"],
+        "supports_credentials": True,
+        "max_age": 3600
     }
 })
 
@@ -1719,6 +1817,27 @@ class ClassroomMessage(db.Model):
     user_id = db.Column(db.String(80), nullable=False)
     classroom_id = db.Column(db.Integer, db.ForeignKey('classroom.id'), nullable=False)
     content = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+class UserStateTransition(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(80), nullable=False)
+    old_state = db.Column(db.String(50), nullable=False)
+    new_state = db.Column(db.String(50), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+class UserPreference(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(80), nullable=False)
+    preference_type = db.Column(db.String(50), nullable=False)
+    preference_value = db.Column(db.String(200), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+class UpdateInteraction(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(80), nullable=False)
+    update_id = db.Column(db.Integer, nullable=False)
+    interaction_type = db.Column(db.String(50), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 # Helper function for allowed file extensions
@@ -2316,9 +2435,9 @@ def upload_profile_picture():
         try:
             # Upload to Cloudinary in the profile-pic folder
             upload_result = cloudinary.uploader.upload(
-                file,
+                file.stream,
                 folder="profile-pic",
-                resource_type="auto"
+                resource_type="raw"
             )
             
             file_url = upload_result.get('secure_url')
@@ -3165,6 +3284,19 @@ def get_messages(classroom_id):
         return jsonify({'messages': result}), 200
     except Exception as e:
         return jsonify({'message': f'Error fetching messages: {str(e)}'}), 500
+
+# Add these lines after initializing the app and before creating tables
+register_updates_blueprint(app)
+
+# Make sure these models are created when creating tables
+with app.app_context():
+    try:
+        # Create tables if they don't exist
+        db.create_all()
+        logger.info("Database tables created successfully")
+    except Exception as e:
+        logger.error(f"Error creating database tables: {str(e)}")
+        raise
 
 if __name__ == '__main__':
     app.run(debug=True)
