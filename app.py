@@ -1632,7 +1632,7 @@
 # if __name__ == '__main__':
 #     app.run(debug=True)
 
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, g
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from flask_migrate import Migrate
@@ -1652,7 +1652,12 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import json
-
+import random
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import time
+from functools import wraps
 # Update to the main Flask app to include the MDP ranking system
 
 # Add these imports to the existing imports
@@ -1666,6 +1671,17 @@ load_dotenv()
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+# Security headers function
+def add_security_headers(response):
+    """Add security headers to each response"""
+    response.headers['Content-Security-Policy'] = "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; connect-src 'self' http://localhost:5000;"
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    return response
+
 # Initialize app
 app = Flask(__name__)
 CORS(app, resources={
@@ -1678,6 +1694,14 @@ CORS(app, resources={
         "max_age": 3600
     }
 })
+
+# Get the current directory
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+DB_PATH = os.path.join(BASE_DIR, 'dep.db')
+
+# Ensure the database directory exists
+os.makedirs(BASE_DIR, exist_ok=True)
+
 
 # Configurations
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///database.db')
@@ -1712,6 +1736,7 @@ class User(db.Model):
     profile_picture = db.Column(db.String(200), nullable=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     last_login = db.Column(db.DateTime, nullable=True)
+    password_changed_at = db.Column(db.DateTime, nullable=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -1719,6 +1744,18 @@ class User(db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+class OTP(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), nullable=False)
+    otp_code = db.Column(db.String(6), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    is_used = db.Column(db.Boolean, default=False)
+    
+    __table_args__ = (
+        db.Index('idx_email_otp', 'email', 'otp_code'),
+        db.Index('idx_expires_at', 'expires_at')
+    )
 class Upload(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     author = db.Column(db.String(80), nullable=False)
@@ -1860,55 +1897,411 @@ def validate_password(password):
         return False, "Password must contain at least one uppercase letter, one lowercase letter, and one number"
     return True, None
 
+# @app.route('/signup', methods=['POST'])
+# def signup():
+#     try:
+#         logger.debug("Received signup request")
+#         data = request.get_json()
+        
+#         if not data:
+#             logger.warning("No data provided in signup request")
+#             return jsonify({'message': 'No data provided'}), 400
+
+#         username = data.get('username')
+#         password = data.get('password')
+
+#         logger.debug(f"Attempting to create user: {username}")
+
+#         # Validate username
+#         is_valid_username, username_error = validate_username(username)
+#         if not is_valid_username:
+#             logger.warning(f"Invalid username: {username_error}")
+#             return jsonify({'message': username_error}), 400
+
+#         # Validate password
+#         is_valid_password, password_error = validate_password(password)
+#         if not is_valid_password:
+#             logger.warning(f"Invalid password: {password_error}")
+#             return jsonify({'message': password_error}), 400
+
+#         # Check if username already exists
+#         if User.query.filter_by(username=username).first():
+#             logger.warning(f"Username already exists: {username}")
+#             return jsonify({'message': 'Username already exists'}), 409
+
+#         # Create new user
+#         new_user = User(username=username)
+#         new_user.set_password(password)
+        
+#         try:
+#             db.session.add(new_user)
+#             db.session.commit()
+#             logger.info(f"User created successfully: {username}")
+#             return jsonify({'message': 'User created successfully'}), 201
+#         except Exception as db_error:
+#             db.session.rollback()
+#             logger.error(f"Database error during signup: {str(db_error)}")
+#             return jsonify({'message': 'Error creating user. Please try again.'}), 500
+
+#     except Exception as e:
+#         logger.error(f"Unexpected error during signup: {str(e)}")
+#         return jsonify({'message': 'An unexpected error occurred'}), 500
+
 @app.route('/signup', methods=['POST'])
 def signup():
+    data = request.get_json()
+    logger.debug(f"Received signup data: {data}")
+    
+    # Validate required fields
+    if not all(k in data for k in ['email', 'username', 'password']):
+        missing_fields = [k for k in ['email', 'username', 'password'] if k not in data]
+        logger.warning(f"Missing required fields: {missing_fields}")
+        return jsonify({'error': f'Missing required fields: {missing_fields}'}), 400
+    
+    email = data['email']
+    username = data['username']
+    password = data['password']
+    
+    logger.debug(f"Processing signup for email: {email}, username: {username}")
+    
+    # Validate IITRPR email domain
+    if not email.endswith('@iitrpr.ac.in'):
+        logger.warning(f"Invalid email domain for: {email}")
+        return jsonify({'error': 'Only IITRPR email addresses (@iitrpr.ac.in) are allowed'}), 400
+    
+    # Validate email format
+    if not re.match(r"[^@]+@iitrpr\.ac\.in$", email):
+        logger.warning(f"Invalid email format for: {email}")
+        return jsonify({'error': 'Invalid IITRPR email format'}), 400
+    
+    # Check if username already exists
+    if User.query.filter_by(username=username).first():
+        logger.warning(f"Username already exists: {username}")
+        return jsonify({'error': 'Username already exists'}), 409
+    
+    # Check if email already exists
+    if User.query.filter_by(email=email).first():
+        logger.warning(f"Email already exists: {email}")
+        return jsonify({'error': 'Email already exists'}), 409
+    
     try:
-        logger.debug("Received signup request")
-        data = request.get_json()
-        
-        if not data:
-            logger.warning("No data provided in signup request")
-            return jsonify({'message': 'No data provided'}), 400
-
-        username = data.get('username')
-        password = data.get('password')
-
-        logger.debug(f"Attempting to create user: {username}")
-
-        # Validate username
-        is_valid_username, username_error = validate_username(username)
-        if not is_valid_username:
-            logger.warning(f"Invalid username: {username_error}")
-            return jsonify({'message': username_error}), 400
-
-        # Validate password
-        is_valid_password, password_error = validate_password(password)
-        if not is_valid_password:
-            logger.warning(f"Invalid password: {password_error}")
-            return jsonify({'message': password_error}), 400
-
-        # Check if username already exists
-        if User.query.filter_by(username=username).first():
-            logger.warning(f"Username already exists: {username}")
-            return jsonify({'message': 'Username already exists'}), 409
-
         # Create new user
-        new_user = User(username=username)
+        new_user = User(
+            username=username,
+            email=email
+        )
         new_user.set_password(password)
         
-        try:
-            db.session.add(new_user)
-            db.session.commit()
-            logger.info(f"User created successfully: {username}")
-            return jsonify({'message': 'User created successfully'}), 201
-        except Exception as db_error:
-            db.session.rollback()
-            logger.error(f"Database error during signup: {str(db_error)}")
-            return jsonify({'message': 'Error creating user. Please try again.'}), 500
-
+        db.session.add(new_user)
+        db.session.commit()
+        logger.info(f"User created successfully: {email}")
+        
+        # Send welcome email
+        if send_welcome_email(email, username):
+            logger.info(f"Welcome email sent to {email}")
+        else:
+            logger.warning(f"Failed to send welcome email to {email}")
+        
+        return jsonify({'message': 'User registered successfully'}), 201
     except Exception as e:
-        logger.error(f"Unexpected error during signup: {str(e)}")
-        return jsonify({'message': 'An unexpected error occurred'}), 500
+        db.session.rollback()
+        logger.error(f"Error during signup: {str(e)}")
+        return jsonify({'error': 'An error occurred during registration'}), 500
+
+@app.route('/request-password-reset', methods=['POST'])
+def request_password_reset():
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        
+        if not email:
+            return jsonify({'error': 'Email is required'}), 400
+            
+        # Get client IP for rate limiting
+        client_ip = request.remote_addr
+        rate_limit_key = f"pwd_reset:{client_ip}:{email}"
+        
+        # Check rate limiting
+        now = time.time()
+        if hasattr(g, 'rate_limits') and rate_limit_key in g.rate_limits:
+            attempts = [t for t in g.rate_limits[rate_limit_key] if now - t < 3600]  # 1 hour window
+            if len(attempts) >= 5:  # 5 attempts per hour
+                retry_after = 3600 - (now - attempts[0])
+                return jsonify({
+                    'error': 'Too many reset attempts',
+                    'retry_after': retry_after,
+                    'attempts_remaining': 0,
+                    'window_reset': attempts[0] + 3600
+                }), 429
+            
+            attempts_remaining = 5 - len(attempts)
+        else:
+            if not hasattr(g, 'rate_limits'):
+                g.rate_limits = {}
+            g.rate_limits[rate_limit_key] = []
+            attempts_remaining = 5
+
+        # Add current attempt
+        if rate_limit_key in g.rate_limits:
+            g.rate_limits[rate_limit_key].append(now)
+            
+        # Validate IITRPR email domain
+        if not email.endswith('@iitrpr.ac.in'):
+            return jsonify({'error': 'Only IITRPR email addresses (@iitrpr.ac.in) are allowed'}), 400
+        
+        # Check if user exists
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            return jsonify({'error': 'No account found with this email'}), 404
+        
+        # Generate OTP for password reset
+        otp = ''.join(random.choices('0123456789', k=6))
+        expires_at = datetime.utcnow() + timedelta(minutes=10)  # 10 minutes expiry
+        
+        # Create OTP record
+        otp_record = OTP(
+            email=email,
+            otp_code=otp,
+            expires_at=expires_at,
+            is_used=False
+        )
+        
+        try:
+            db.session.add(otp_record)
+            db.session.commit()
+            
+            # Send OTP via email with password reset specific message
+            if send_password_reset_email(email, otp):
+                return jsonify({
+                    'message': 'Password reset OTP sent successfully to your email',
+                    'expires_in': 600,  # 10 minutes in seconds
+                    'attempts_remaining': attempts_remaining - 1,
+                    'window_reset': now + 3600
+                }), 200
+            else:
+                return jsonify({'error': 'Failed to send password reset email'}), 500
+                
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error saving password reset OTP: {str(e)}")
+            return jsonify({'error': 'Failed to generate password reset OTP'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error in request_password_reset: {str(e)}")
+        return jsonify({'error': 'An unexpected error occurred'}), 500
+
+@app.route('/verify-reset-otp', methods=['POST'])
+def verify_reset_otp():
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        otp = data.get('otp')
+        new_password = data.get('new_password')
+        
+        if not all([email, otp, new_password]):
+            return jsonify({'error': 'Email, OTP, and new password are required'}), 400
+        
+        # Validate password
+        if len(new_password) < 6:
+            return jsonify({'error': 'Password must be at least 6 characters long'}), 400
+        if not re.match(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)', new_password):
+            return jsonify({'error': 'Password must contain at least one uppercase letter, one lowercase letter, and one number'}), 400
+        
+        # Find the most recent unused OTP for this email
+        otp_record = OTP.query.filter_by(
+            email=email,
+            otp_code=otp,
+            is_used=False
+        ).order_by(OTP.created_at.desc()).first()
+        
+        if not otp_record:
+            return jsonify({'error': 'Invalid OTP'}), 400
+        
+        # Check if OTP has expired
+        if datetime.utcnow() > otp_record.expires_at:
+            return jsonify({'error': 'OTP has expired'}), 400
+        
+        try:
+            # Mark OTP as used
+            otp_record.is_used = True
+            
+            # Update user's password
+            user = User.query.filter_by(email=email).first()
+            if not user:
+                return jsonify({'error': 'User not found'}), 404
+                
+            user.set_password(new_password)
+            user.password_changed_at = datetime.utcnow()  # Track password change time
+            db.session.commit()
+            
+            return jsonify({'message': 'Password reset successful'}), 200
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error during password reset: {str(e)}")
+            return jsonify({'error': 'An error occurred during password reset'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error in verify_reset_otp: {str(e)}")
+        return jsonify({'error': 'An unexpected error occurred'}), 500
+
+def send_password_reset_email(email, otp):
+    try:
+        # Create message
+        msg = MIMEMultipart('alternative')
+        msg['From'] = f"DEP Platform <{os.getenv('EMAIL_USERNAME')}>"
+        msg['To'] = email
+        msg['Subject'] = 'Password Reset Request - DEP Platform'
+
+        # Create HTML version of the email
+        html = f"""
+        <html>
+            <head>
+                <style>
+                    body {{
+                        font-family: Arial, sans-serif;
+                        line-height: 1.6;
+                        color: #333333;
+                        max-width: 600px;
+                        margin: 0 auto;
+                        padding: 20px;
+                    }}
+                    .header {{
+                        background-color: #1a237e;
+                        color: white;
+                        padding: 20px;
+                        text-align: center;
+                        border-radius: 5px;
+                    }}
+                    .content {{
+                        background-color: #ffffff;
+                        padding: 20px;
+                        border-radius: 5px;
+                        margin-top: 20px;
+                    }}
+                    .otp {{
+                        font-size: 32px;
+                        font-weight: bold;
+                        color: #1a237e;
+                        text-align: center;
+                        padding: 20px;
+                        margin: 20px 0;
+                        background-color: #f5f5f5;
+                        border-radius: 5px;
+                        letter-spacing: 5px;
+                    }}
+                    .warning {{
+                        color: #d32f2f;
+                        font-weight: bold;
+                        margin-top: 20px;
+                        padding: 10px;
+                        background-color: #ffebee;
+                        border-radius: 5px;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>Password Reset Request</h1>
+                </div>
+                <div class="content">
+                    <p>Dear User,</p>
+                    <p>We received a request to reset your password for your DEP Platform account. To proceed with the password reset, please use the following OTP (One-Time Password):</p>
+                    <div class="otp">{otp}</div>
+                    <p><strong>Important Notes:</strong></p>
+                    <ul>
+                        <li>This OTP will expire in 10 minutes</li>
+                        <li>If you didn't request this password reset, please ignore this email</li>
+                        <li>Your account security is important to us</li>
+                    </ul>
+                    <div class="warning">
+                        <p>⚠️ Security Notice:</p>
+                        <ul>
+                            <li>Never share your OTP with anyone</li>
+                            <li>Our team will never ask for your OTP</li>
+                            <li>This is an automated message, please do not reply</li>
+                        </ul>
+                    </div>
+                    <p>Best regards,<br>DEP Platform Team</p>
+                </div>
+            </body>
+        </html>
+        """
+
+        # Create plain text version
+        text = f"""
+        Password Reset Request - DEP Platform
+
+        Dear User,
+
+        We received a request to reset your password for your DEP Platform account. To proceed with the password reset, please use the following OTP (One-Time Password):
+
+        {otp}
+
+        Important Notes:
+        - This OTP will expire in 10 minutes
+        - If you didn't request this password reset, please ignore this email
+        - Your account security is important to us
+
+        Security Notice:
+        ⚠️ Never share your OTP with anyone
+        ⚠️ Our team will never ask for your OTP
+        ⚠️ This is an automated message, please do not reply
+
+        Best regards,
+        DEP Platform Team
+        """
+
+        # Attach both versions
+        msg.attach(MIMEText(text, 'plain'))
+        msg.attach(MIMEText(html, 'html'))
+
+        # Create SMTP session and send email
+        server = smtplib.SMTP(os.getenv('EMAIL_SERVER'), int(os.getenv('EMAIL_PORT')))
+        server.starttls()
+        server.login(os.getenv('EMAIL_USERNAME'), os.getenv('EMAIL_PASSWORD'))
+        server.send_message(msg)
+        server.quit()
+        
+        return True
+    except Exception as e:
+        logger.error(f"Error sending password reset email: {str(e)}")
+        return False
+
+
+# @app.route('/login', methods=['POST'])
+# def login():
+#     try:
+#         data = request.get_json()
+        
+#         if not data:
+#             return jsonify({'message': 'No data provided'}), 400
+
+#         username = data.get('username')
+#         password = data.get('password')
+
+#         if not username or not password:
+#             return jsonify({'message': 'Username and password are required'}), 400
+
+#         user = User.query.filter_by(username=username).first()
+        
+#         if not user or not user.check_password(password):
+#             return jsonify({'message': 'Invalid username or password'}), 401
+
+#         # Update last login
+#         user.last_login = db.func.now()
+#         db.session.commit()
+
+#         # Create access token
+#         access_token = create_access_token(identity=username)
+        
+#         return jsonify({
+#             'access_token': access_token,
+#             'username': username
+#         }), 200
+
+#     except Exception as e:
+#         return jsonify({'message': 'An unexpected error occurred'}), 500
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -1918,31 +2311,422 @@ def login():
         if not data:
             return jsonify({'message': 'No data provided'}), 400
 
-        username = data.get('username')
+        email = data.get('email')
         password = data.get('password')
 
-        if not username or not password:
-            return jsonify({'message': 'Username and password are required'}), 400
+        if not email or not password:
+            return jsonify({'message': 'Email and password are required'}), 400
 
-        user = User.query.filter_by(username=username).first()
+        user = User.query.filter_by(email=email).first()
         
         if not user or not user.check_password(password):
-            return jsonify({'message': 'Invalid username or password'}), 401
+            return jsonify({'message': 'Invalid email or password'}), 401
 
         # Update last login
         user.last_login = db.func.now()
         db.session.commit()
 
         # Create access token
-        access_token = create_access_token(identity=username)
+        access_token = create_access_token(identity=user.username)
         
         return jsonify({
             'access_token': access_token,
-            'username': username
+            'username': user.username
         }), 200
 
     except Exception as e:
+        logger.error(f"Login error: {str(e)}")
         return jsonify({'message': 'An unexpected error occurred'}), 500
+
+# Rate limiting decorator
+def rate_limit(limit=5, period=600):  # 5 requests per 10 minutes
+    def decorator(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            # Get client IP
+            client_ip = request.remote_addr
+            key = f"rate_limit:{client_ip}:{f.__name__}"
+            
+            # Get current timestamp
+            now = time.time()
+            
+            # Initialize g object if it doesn't exist
+            if not hasattr(g, 'rate_limits'):
+                g.rate_limits = {}
+            
+            # Get existing requests or initialize
+            if key not in g.rate_limits:
+                g.rate_limits[key] = []
+            
+            requests = g.rate_limits[key]
+            
+            # Remove old requests
+            requests = [req for req in requests if now - req < period]
+            
+            # Check if limit exceeded
+            if len(requests) >= limit:
+                return jsonify({
+                    'error': 'Too many requests. Please try again later.',
+                    'retry_after': int(period - (now - requests[0]))
+                }), 429
+            
+            # Add current request
+            requests.append(now)
+            g.rate_limits[key] = requests
+            
+            # Call the original function
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
+
+# Session management for OTP attempts
+otp_attempts = {}
+
+def track_otp_attempts(email, max_attempts=5, window_minutes=10):
+    current_time = time.time()
+    if email not in otp_attempts:
+        otp_attempts[email] = []
+    
+    # Remove old attempts
+    otp_attempts[email] = [t for t in otp_attempts[email] if current_time - t < window_minutes * 60]
+    
+    # Check if max attempts exceeded
+    if len(otp_attempts[email]) >= max_attempts:
+        return False, window_minutes * 60 - (current_time - otp_attempts[email][0]), 0
+    
+    # Add new attempt
+    otp_attempts[email].append(current_time)
+    attempts_left = max_attempts - len(otp_attempts[email])
+    return True, 0, attempts_left
+
+def validate_otp_format(otp):
+    if not otp or not isinstance(otp, str):
+        return False
+    if not otp.isdigit():
+        return False
+    if len(otp) != 6:
+        return False
+    return True
+
+@app.route('/verify-otp', methods=['POST'])
+def verify_otp():
+    data = request.get_json()
+    email = data.get('email')
+    otp = data.get('otp')
+    
+    if not email or not otp:
+        logger.warning(f"Missing email or OTP in verification request")
+        return jsonify({'error': 'Email and OTP are required'}), 400
+    
+    # Validate OTP format
+    if not validate_otp_format(otp):
+        logger.warning(f"Invalid OTP format for email: {email}")
+        return jsonify({'error': 'Invalid OTP format'}), 400
+    
+    # Check for too many attempts
+    allowed, retry_after, attempts_left = track_otp_attempts(email)
+    if not allowed:
+        logger.warning(f"Too many OTP verification attempts for email: {email}")
+        return jsonify({
+            'error': 'Too many verification attempts. Please try again later.',
+            'retry_after': int(retry_after),
+            'attempts_left': attempts_left
+        }), 429
+    
+    # Find the most recent unused OTP for this email
+    otp_record = OTP.query.filter_by(
+        email=email,
+        otp_code=otp,  # This matches the field name in the database
+        is_used=False
+    ).order_by(OTP.created_at.desc()).first()
+    
+    if not otp_record:
+        logger.warning(f"Invalid OTP attempt for email: {email}")
+        return jsonify({
+            'error': 'Invalid OTP',
+            'attempts_left': attempts_left
+        }), 400
+    
+    # Check if OTP has expired
+    if datetime.utcnow() > otp_record.expires_at:
+        logger.warning(f"Expired OTP attempt for email: {email}")
+        return jsonify({
+            'error': 'OTP has expired',
+            'attempts_left': attempts_left
+        }), 400
+    
+    try:
+        # Mark OTP as used
+        otp_record.is_used = True
+        
+        # Get user and update last login
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            logger.error(f"User not found for email: {email}")
+            return jsonify({'error': 'User not found'}), 404
+            
+        user.last_login = datetime.utcnow()
+        
+        # Generate access token
+        access_token = create_access_token(identity=user.username)
+        
+        db.session.commit()
+        
+        logger.info(f"Successful OTP verification for email: {email}")
+        return jsonify({
+            'message': 'OTP verified successfully',
+            'access_token': access_token,
+            'username': user.username
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error during OTP verification for email {email}: {str(e)}")
+        return jsonify({'error': 'An error occurred during verification'}), 500
+
+def send_otp_email(email, otp):
+    try:
+        # Create message
+        msg = MIMEMultipart('alternative')
+        msg['From'] = f"DEP Platform <{os.getenv('EMAIL_USERNAME')}>"
+        msg['To'] = email
+        msg['Subject'] = 'Your DEP Platform Login OTP'
+
+        # Create HTML version of the email
+        html = f"""
+        <html>
+            <head>
+                <style>
+                    body {{
+                        font-family: Arial, sans-serif;
+                        line-height: 1.6;
+                        color: #333333;
+                        max-width: 600px;
+                        margin: 0 auto;
+                        padding: 20px;
+                    }}
+                    .header {{
+                        background-color: #1a237e;
+                        color: white;
+                        padding: 20px;
+                        text-align: center;
+                        border-radius: 5px;
+                    }}
+                    .content {{
+                        background-color: #ffffff;
+                        padding: 20px;
+                        border-radius: 5px;
+                        margin-top: 20px;
+                    }}
+                    .otp {{
+                        font-size: 32px;
+                        font-weight: bold;
+                        color: #1a237e;
+                        text-align: center;
+                        padding: 20px;
+                        margin: 20px 0;
+                        background-color: #f5f5f5;
+                        border-radius: 5px;
+                        letter-spacing: 5px;
+                    }}
+                    .footer {{
+                        text-align: center;
+                        margin-top: 20px;
+                        font-size: 12px;
+                        color: #666666;
+                    }}
+                    .warning {{
+                        color: #d32f2f;
+                        font-weight: bold;
+                        margin-top: 20px;
+                        padding: 10px;
+                        background-color: #ffebee;
+                        border-radius: 5px;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>DEP Platform Login Verification</h1>
+                </div>
+                <div class="content">
+                    <p>Dear User,</p>
+                    <p>Thank you for using the DEP Platform. To complete your login process, please use the following OTP (One-Time Password):</p>
+                    <div class="otp">{otp}</div>
+                    <p><strong>Important Notes:</strong></p>
+                    <ul>
+                        <li>This OTP will expire in 10 minutes</li>
+                        <li>Do not share this OTP with anyone</li>
+                        <li>If you didn't request this OTP, please ignore this email</li>
+                    </ul>
+                    <div class="warning">
+                        <p>⚠️ Security Notice:</p>
+                        <ul>
+                            <li>Never share your OTP with anyone</li>
+                            <li>Our team will never ask for your OTP</li>
+                            <li>This is an automated message, please do not reply</li>
+                        </ul>
+                    </div>
+                    <p>Best regards,<br>DEP Platform Team</p>
+                </div>
+                <div class="footer">
+                    <p>This is an automated message, please do not reply to this email.</p>
+                    <p>© 2024 DEP Platform. All rights reserved.</p>
+                </div>
+            </body>
+        </html>
+        """
+
+        # Create plain text version
+        text = f"""
+        DEP Platform Login Verification
+
+        Dear User,
+
+        Thank you for using the DEP Platform. To complete your login process, please use the following OTP (One-Time Password):
+
+        {otp}
+
+        Important Notes:
+        - This OTP will expire in 10 minutes
+        - Do not share this OTP with anyone
+        - If you didn't request this OTP, please ignore this email
+
+        Security Notice:
+        ⚠️ Never share your OTP with anyone
+        ⚠️ Our team will never ask for your OTP
+        ⚠️ This is an automated message, please do not reply
+
+        Best regards,
+        DEP Platform Team
+
+        This is an automated message, please do not reply to this email.
+        © 2024 DEP Platform. All rights reserved.
+        """
+
+        # Attach both HTML and plain text versions
+        msg.attach(MIMEText(text, 'plain'))
+        msg.attach(MIMEText(html, 'html'))
+
+        # Create SMTP session
+        server = smtplib.SMTP(os.getenv('EMAIL_SERVER'), int(os.getenv('EMAIL_PORT')))
+        server.starttls()
+        server.login(os.getenv('EMAIL_USERNAME'), os.getenv('EMAIL_PASSWORD'))
+        
+        # Send email
+        server.send_message(msg)
+        server.quit()
+        
+        logger.info(f"OTP email sent successfully to {email}")
+        return True
+    except Exception as e:
+        logger.error(f"Error sending OTP email to {email}: {str(e)}")
+        return False
+
+@app.route('/generate-otp', methods=['POST'])
+def generate_otp():
+    try:
+        data = request.get_json()
+        logger.debug(f"Received OTP generation request: {data}")
+        
+        if not data or 'email' not in data:
+            logger.warning("Missing email in OTP request")
+            return jsonify({'error': 'Email is required'}), 400
+            
+        email = data['email']
+        
+        # Validate IITRPR email domain
+        if not email.endswith('@iitrpr.ac.in'):
+            logger.warning(f"Invalid email domain for OTP request: {email}")
+            return jsonify({'error': 'Only IITRPR email addresses (@iitrpr.ac.in) are allowed'}), 400
+        
+        # Check if user exists
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            logger.warning(f"No account found for email: {email}")
+            return jsonify({'error': 'No account found with this email'}), 404
+        
+        # Generate OTP
+        otp = ''.join(random.choices('0123456789', k=6))
+        expires_at = datetime.utcnow() + timedelta(minutes=5)
+        
+        # Create OTP record
+        otp_record = OTP(
+            email=email,
+            otp_code=otp,
+            expires_at=expires_at,
+            is_used=False
+        )
+        
+        try:
+            db.session.add(otp_record)
+            db.session.commit()
+            logger.info(f"OTP generated for email: {email}")
+            
+            # Send OTP via email
+            if send_otp_email(email, otp):
+                return jsonify({
+                    'message': 'OTP sent successfully to your email',
+                    'expires_in': 300  # 5 minutes in seconds
+                }), 200
+            else:
+                return jsonify({'error': 'Failed to send OTP email'}), 500
+                
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error saving OTP: {str(e)}")
+            return jsonify({'error': 'Failed to generate OTP'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error in generate_otp: {str(e)}")
+        return jsonify({'error': 'An unexpected error occurred'}), 500
+
+@app.route('/resend-otp', methods=['POST'])
+@rate_limit(limit=2, period=300)  # 2 requests per 5 minutes
+def resend_otp():
+    data = request.get_json()
+    email = data.get('email')
+    
+    if not email:
+        return jsonify({'error': 'Email is required'}), 400
+    
+    # Check if user exists
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({'error': 'No account found with this email'}), 404
+    
+    # Check for recent OTP
+    recent_otp = OTP.query.filter_by(
+        email=email,
+        is_used=False
+    ).order_by(OTP.created_at.desc()).first()
+    
+    if not recent_otp:
+        return jsonify({'error': 'No active OTP found. Please generate a new one.'}), 400
+    
+    if datetime.utcnow() - recent_otp.created_at < timedelta(minutes=1):
+        return jsonify({
+            'error': 'Please wait 1 minute before requesting another OTP',
+            'retry_after': 60 - (datetime.utcnow() - recent_otp.created_at).seconds
+        }), 429
+    
+    # Resend the existing OTP
+    if os.getenv('FLASK_ENV') == 'development':
+        return jsonify({
+            'message': 'OTP resent successfully (Development Mode)',
+            'otp': recent_otp.otp_code,  # Remove this in production
+            'expires_at': recent_otp.expires_at.isoformat()
+        }), 200
+    else:
+        if send_otp_email(email, recent_otp.otp_code):
+            return jsonify({
+                'message': 'OTP has been resent to your email',
+                'expires_at': recent_otp.expires_at.isoformat()
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Failed to resend OTP email. Please try again.'
+            }), 500
 
 @app.route('/uploads', methods=['POST'])
 @jwt_required()
@@ -3297,6 +4081,105 @@ with app.app_context():
     except Exception as e:
         logger.error(f"Error creating database tables: {str(e)}")
         raise
+
+def send_welcome_email(email, username):
+    try:
+        # Create message
+        msg = MIMEMultipart('alternative')
+        msg['From'] = f"DEP Platform <{os.getenv('EMAIL_USERNAME')}>"
+        msg['To'] = email
+        msg['Subject'] = 'Welcome to DEP Platform'
+
+        # Create HTML version of the email
+        html = f"""
+        <html>
+            <head>
+                <style>
+                    body {{
+                        font-family: Arial, sans-serif;
+                        line-height: 1.6;
+                        color: #333333;
+                        max-width: 600px;
+                        margin: 0 auto;
+                        padding: 20px;
+                    }}
+                    .header {{
+                        background-color: #1a237e;
+                        color: white;
+                        padding: 20px;
+                        text-align: center;
+                        border-radius: 5px;
+                    }}
+                    .content {{
+                        background-color: #ffffff;
+                        padding: 20px;
+                        border-radius: 5px;
+                        margin-top: 20px;
+                    }}
+                    .footer {{
+                        text-align: center;
+                        margin-top: 20px;
+                        font-size: 12px;
+                        color: #666666;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>Welcome to DEP Platform</h1>
+                </div>
+                <div class="content">
+                    <p>Dear {username},</p>
+                    <p>Thank you for registering with the DEP Platform! Your account has been successfully created.</p>
+                    <p>You can now access all the features of our platform using your registered email address and password.</p>
+                    <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
+                    <p>Best regards,<br>DEP Platform Team</p>
+                </div>
+                <div class="footer">
+                    <p>This is an automated message, please do not reply to this email.</p>
+                    <p>© 2024 DEP Platform. All rights reserved.</p>
+                </div>
+            </body>
+        </html>
+        """
+
+        # Create plain text version
+        text = f"""
+        Welcome to DEP Platform
+
+        Dear {username},
+
+        Thank you for registering with the DEP Platform! Your account has been successfully created.
+
+        You can now access all the features of our platform using your registered email address and password.
+
+        If you have any questions or need assistance, please don't hesitate to contact our support team.
+
+        Best regards,
+        DEP Platform Team
+
+        This is an automated message, please do not reply to this email.
+        © 2024 DEP Platform. All rights reserved.
+        """
+
+        # Attach both versions
+        msg.attach(MIMEText(text, 'plain'))
+        msg.attach(MIMEText(html, 'html'))
+
+        # Create SMTP session
+        server = smtplib.SMTP(os.getenv('EMAIL_SERVER'), int(os.getenv('EMAIL_PORT')))
+        server.starttls()
+        server.login(os.getenv('EMAIL_USERNAME'), os.getenv('EMAIL_PASSWORD'))
+        
+        # Send email
+        server.send_message(msg)
+        server.quit()
+        
+        logger.info(f"Welcome email sent successfully to {email}")
+        return True
+    except Exception as e:
+        logger.error(f"Error sending welcome email to {email}: {str(e)}")
+        return False
 
 if __name__ == '__main__':
     app.run(debug=True)
