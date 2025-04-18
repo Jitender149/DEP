@@ -1,9 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { Box, Paper, Typography } from '@mui/material';
+import { Box, Paper, Typography, useTheme, alpha } from '@mui/material';
 
 function SearchForm({ onSearch }) {
+  const theme = useTheme();
   const [searchParams, setSearchParams] = useState({
     field: "",
     geoid: "",
@@ -34,8 +35,10 @@ function SearchForm({ onSearch }) {
       sx={{
         p: 4,
         borderRadius: 2,
-        background: 'white',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.05)'
+        bgcolor: theme.palette.mode === 'dark' ? alpha(theme.palette.background.paper, 0.8) : 'white',
+        boxShadow: theme.palette.mode === 'dark' 
+          ? `0 4px 20px ${alpha(theme.palette.common.black, 0.3)}`
+          : `0 2px 10px ${alpha(theme.palette.common.black, 0.05)}`
       }}
     >
       <Typography 
@@ -61,7 +64,7 @@ function SearchForm({ onSearch }) {
             <label htmlFor="field" style={{ 
               display: 'block',
               marginBottom: '8px',
-              color: '#333',
+              color: theme.palette.text.primary,
               fontWeight: 500
             }}>Keywords</label>
             <input
@@ -74,14 +77,16 @@ function SearchForm({ onSearch }) {
               style={{
                 width: '100%',
                 padding: '12px 16px',
-                border: '1px solid #e0e0e0',
+                border: `1px solid ${theme.palette.mode === 'dark' ? theme.palette.divider : '#e0e0e0'}`,
                 borderRadius: '8px',
                 fontSize: '1rem',
                 transition: 'all 0.2s ease',
                 outline: 'none',
+                backgroundColor: theme.palette.mode === 'dark' ? theme.palette.background.paper : 'white',
+                color: theme.palette.text.primary,
                 '&:focus': {
-                  borderColor: '#1976d2',
-                  boxShadow: '0 0 0 2px rgba(25, 118, 210, 0.2)'
+                  borderColor: theme.palette.primary.main,
+                  boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)}`
                 }
               }}
             />
@@ -91,7 +96,7 @@ function SearchForm({ onSearch }) {
             <label htmlFor="geoid" style={{ 
               display: 'block',
               marginBottom: '8px',
-              color: '#333',
+              color: theme.palette.text.primary,
               fontWeight: 500
             }}>Location</label>
             <input
@@ -104,14 +109,16 @@ function SearchForm({ onSearch }) {
               style={{
                 width: '100%',
                 padding: '12px 16px',
-                border: '1px solid #e0e0e0',
+                border: `1px solid ${theme.palette.mode === 'dark' ? theme.palette.divider : '#e0e0e0'}`,
                 borderRadius: '8px',
                 fontSize: '1rem',
                 transition: 'all 0.2s ease',
                 outline: 'none',
+                backgroundColor: theme.palette.mode === 'dark' ? theme.palette.background.paper : 'white',
+                color: theme.palette.text.primary,
                 '&:focus': {
-                  borderColor: '#1976d2',
-                  boxShadow: '0 0 0 2px rgba(25, 118, 210, 0.2)'
+                  borderColor: theme.palette.primary.main,
+                  boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)}`
                 }
               }}
             />
@@ -128,7 +135,7 @@ function SearchForm({ onSearch }) {
             <label htmlFor="jobType" style={{ 
               display: 'block',
               marginBottom: '8px',
-              color: '#333',
+              color: theme.palette.text.primary,
               fontWeight: 500
             }}>Job Type</label>
             <select
@@ -139,16 +146,17 @@ function SearchForm({ onSearch }) {
               style={{
                 width: '100%',
                 padding: '12px 16px',
-                border: '1px solid #e0e0e0',
+                border: `1px solid ${theme.palette.mode === 'dark' ? theme.palette.divider : '#e0e0e0'}`,
                 borderRadius: '8px',
                 fontSize: '1rem',
-                backgroundColor: 'white',
+                backgroundColor: theme.palette.mode === 'dark' ? theme.palette.background.paper : 'white',
+                color: theme.palette.text.primary,
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 outline: 'none',
                 '&:focus': {
-                  borderColor: '#1976d2',
-                  boxShadow: '0 0 0 2px rgba(25, 118, 210, 0.2)'
+                  borderColor: theme.palette.primary.main,
+                  boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)}`
                 }
               }}
             >
@@ -165,7 +173,7 @@ function SearchForm({ onSearch }) {
             <label htmlFor="expLevel" style={{ 
               display: 'block',
               marginBottom: '8px',
-              color: '#333',
+              color: theme.palette.text.primary,
               fontWeight: 500
             }}>Experience Level</label>
             <select
@@ -176,16 +184,17 @@ function SearchForm({ onSearch }) {
               style={{
                 width: '100%',
                 padding: '12px 16px',
-                border: '1px solid #e0e0e0',
+                border: `1px solid ${theme.palette.mode === 'dark' ? theme.palette.divider : '#e0e0e0'}`,
                 borderRadius: '8px',
                 fontSize: '1rem',
-                backgroundColor: 'white',
+                backgroundColor: theme.palette.mode === 'dark' ? theme.palette.background.paper : 'white',
+                color: theme.palette.text.primary,
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 outline: 'none',
                 '&:focus': {
-                  borderColor: '#1976d2',
-                  boxShadow: '0 0 0 2px rgba(25, 118, 210, 0.2)'
+                  borderColor: theme.palette.primary.main,
+                  boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)}`
                 }
               }}
             >
@@ -209,7 +218,7 @@ function SearchForm({ onSearch }) {
             <label htmlFor="workType" style={{ 
               display: 'block',
               marginBottom: '8px',
-              color: '#333',
+              color: theme.palette.text.primary,
               fontWeight: 500
             }}>Work Type</label>
             <select
@@ -220,16 +229,17 @@ function SearchForm({ onSearch }) {
               style={{
                 width: '100%',
                 padding: '12px 16px',
-                border: '1px solid #e0e0e0',
+                border: `1px solid ${theme.palette.mode === 'dark' ? theme.palette.divider : '#e0e0e0'}`,
                 borderRadius: '8px',
                 fontSize: '1rem',
-                backgroundColor: 'white',
+                backgroundColor: theme.palette.mode === 'dark' ? theme.palette.background.paper : 'white',
+                color: theme.palette.text.primary,
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 outline: 'none',
                 '&:focus': {
-                  borderColor: '#1976d2',
-                  boxShadow: '0 0 0 2px rgba(25, 118, 210, 0.2)'
+                  borderColor: theme.palette.primary.main,
+                  boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)}`
                 }
               }}
             >
@@ -244,7 +254,7 @@ function SearchForm({ onSearch }) {
             <label htmlFor="sortBy" style={{ 
               display: 'block',
               marginBottom: '8px',
-              color: '#333',
+              color: theme.palette.text.primary,
               fontWeight: 500
             }}>Sort By</label>
             <select
@@ -255,16 +265,17 @@ function SearchForm({ onSearch }) {
               style={{
                 width: '100%',
                 padding: '12px 16px',
-                border: '1px solid #e0e0e0',
+                border: `1px solid ${theme.palette.mode === 'dark' ? theme.palette.divider : '#e0e0e0'}`,
                 borderRadius: '8px',
                 fontSize: '1rem',
-                backgroundColor: 'white',
+                backgroundColor: theme.palette.mode === 'dark' ? theme.palette.background.paper : 'white',
+                color: theme.palette.text.primary,
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 outline: 'none',
                 '&:focus': {
-                  borderColor: '#1976d2',
-                  boxShadow: '0 0 0 2px rgba(25, 118, 210, 0.2)'
+                  borderColor: theme.palette.primary.main,
+                  boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)}`
                 }
               }}
             >
@@ -283,7 +294,7 @@ function SearchForm({ onSearch }) {
             <label htmlFor="filterByCompany" style={{ 
               display: 'block',
               marginBottom: '8px',
-              color: '#333',
+              color: theme.palette.text.primary,
               fontWeight: 500
             }}>Company</label>
             <input
@@ -296,14 +307,16 @@ function SearchForm({ onSearch }) {
               style={{
                 width: '100%',
                 padding: '12px 16px',
-                border: '1px solid #e0e0e0',
+                border: `1px solid ${theme.palette.mode === 'dark' ? theme.palette.divider : '#e0e0e0'}`,
                 borderRadius: '8px',
                 fontSize: '1rem',
                 transition: 'all 0.2s ease',
                 outline: 'none',
+                backgroundColor: theme.palette.mode === 'dark' ? theme.palette.background.paper : 'white',
+                color: theme.palette.text.primary,
                 '&:focus': {
-                  borderColor: '#1976d2',
-                  boxShadow: '0 0 0 2px rgba(25, 118, 210, 0.2)'
+                  borderColor: theme.palette.primary.main,
+                  boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)}`
                 }
               }}
             />
@@ -315,8 +328,8 @@ function SearchForm({ onSearch }) {
           style={{
             width: '100%',
             padding: '14px 24px',
-            backgroundColor: '#1976d2',
-            color: 'white',
+            backgroundColor: theme.palette.primary.main,
+            color: theme.palette.primary.contrastText,
             border: 'none',
             borderRadius: '8px',
             fontSize: '1rem',
@@ -324,8 +337,8 @@ function SearchForm({ onSearch }) {
             cursor: 'pointer',
             transition: 'all 0.2s ease',
             '&:hover': {
-              backgroundColor: '#1565c0',
-              boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+              backgroundColor: theme.palette.primary.dark,
+              boxShadow: `0 4px 8px ${alpha(theme.palette.common.black, 0.1)}`
             }
           }}
         >
