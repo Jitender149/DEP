@@ -1,7 +1,9 @@
 # Additional models for the MDP ranking system
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime, timedelta
 from werkzeug.security import check_password_hash, generate_password_hash
+import random
+import string
 
 db = SQLAlchemy()
 
@@ -85,6 +87,9 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     last_login = db.Column(db.DateTime, nullable=True)
     password_changed_at = db.Column(db.DateTime, nullable=True)
+    is_verified = db.Column(db.Boolean, default=False)
+    verification_token = db.Column(db.String(100), nullable=True)
+    verification_token_expires = db.Column(db.DateTime, nullable=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -92,6 +97,19 @@ class User(db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+    def generate_verification_token(self):
+        self.verification_token = ''.join(random.choices(string.ascii_letters + string.digits, k=32))
+        self.verification_token_expires = datetime.utcnow() + timedelta(hours=24)
+        return self.verification_token
+    def verify_email(self, token):
+        if (self.verification_token == token and 
+            self.verification_token_expires and 
+            datetime.utcnow() < self.verification_token_expires):
+            self.is_verified = True
+            self.verification_token = None
+            self.verification_token_expires = None
+            return True
+        return False
 class Upload(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     author = db.Column(db.String(80), nullable=False)

@@ -18,6 +18,7 @@ import DSAResources from "./Components/DSAResource"
 import DiscussionPage from "./Components/DiscussionPage"
 import NoticesPage from "./Components/notices/NoticePage"
 import ProfileNew from "./Components/ProfileNew"
+import ResetPassword from './Components/ResetPassword'
 
 function App() {
   return (
@@ -138,6 +139,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="/reset-password" element={<ResetPassword />} />
               {/* Catch all route */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
