@@ -9,6 +9,7 @@ import {
   ContactMail as ContactIcon,
   EmojiEvents,
   Notifications as NotificationsIcon,
+  Search as SearchIcon,
 } from "@mui/icons-material"
 import PageHeader from "./PageHeader"
 
@@ -55,34 +56,33 @@ const Home = () => {
 
   const features = [
     {
-      icon: <SchoolIcon sx={{ fontSize: 40 }} />,
-      title: "Educational Resources",
-      description:
-        "Access a vast collection of study materials, notes, and resources shared by students and educators.",
+      icon: <BookIcon sx={{ fontSize: 40 }} />,
+      title: "Material Sharing",
+      description: "Share and access study materials, notes, and resources with your peers.",
       onClick: () => navigate("/resources")
     },
     {
       icon: <WorkIcon sx={{ fontSize: 40 }} />,
-      title: "College Internships and Placements",
-      description: "Connect with seniors and peers to get intern and placement help and resources.",
+      title: "Placement & Interview",
+      description: "Get interview tips, a pool of DSA resources and know about placement drives. ",
       onClick: () => navigate("/internships-placements"),
     },
     {
-      icon: <WorkIcon sx={{ fontSize: 40 }} />,
-      title: "Jobs and Internships Finder",
+      icon: <SearchIcon sx={{ fontSize: 40 }} />,
+      title: "Job Search",
       description: "Find and apply for job opportunities and internships that match your skills and interests.",
       onClick: () => navigate("/jobs"),
     },
     {
-      icon: <EmojiEvents sx={{ fontSize: 40 }} />,
-      title: "Discussion Groups",
-      description: "Join classroom discussions, share ideas, and collaborate with peers.",
+      icon: <GroupIcon sx={{ fontSize: 40 }} />,
+      title: "Group Collaboration",
+      description: "Create and join study groups for collaborative learning and project work.",
       onClick: () => navigate("/discussion"),
     },
     {
       icon: <NotificationsIcon sx={{ fontSize: 40 }} />,
-      title: "Latest Updates",
-      description: "Stay informed with personalized updates, notices, and important announcements.",
+      title: "Smart Notifications",
+      description: "Get personalized updates and important announcements through our AI-powered system.",
       onClick: () => navigate("/notices"),
     },
   ]
@@ -105,11 +105,12 @@ const Home = () => {
             Your Gateway to Academic Excellence
           </Typography>
           <Typography variant="h5" color="text.secondary" sx={{ mb: 4, maxWidth: "800px", mx: "auto" }}>
-            Join our community of learners and educators to share knowledge, collaborate, and grow together.
+            Join our community of learners to share knowledge, collaborate, and grow together.
           </Typography>
           <Button
             variant="contained"
             size="large"
+            onClick={() => navigate("/about")}
             sx={{
               px: 4,
               py: 1.5,
